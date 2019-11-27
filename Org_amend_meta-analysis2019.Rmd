@@ -3,9 +3,9 @@ title: "Ometa_Organic_Amendment_Meta_Analysis"
 output: html_notebook
 ---
 
-### Goal: Analalyze data on soil organic amendment impact on soil carbon pools > 20cm in depth
+#### Goal: Analalyze data on soil organic amendment impact on soil carbon pools > 20cm in depth
 
-### Notes:
+#### Notes:
        #echo=false supresses code; include=false supressed output
         #Last working on:
         1) COMPLETE Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
