@@ -1,6 +1,8 @@
 ---
 title: "Ometa_Organic_Amendment_Meta_Analysis"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 #### Goal: Analalyze data on soil organic amendment impact on soil carbon pools > 20cm in depth
@@ -18,14 +20,14 @@ When you save the notebook, an HTML file containing the code and output will be 
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 
 
-```{r prelimary - load packages, include=FALSE}
+```{r, prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
 uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis") #save long name as user directory uzdir
 setwd(paste(uzdir))  #set your working directory/file
 source(file="libraries_20190816.R") #install packages, use old vegan 
 ```
 
-```{r climate data, eval=FALSE}
+```{r, climate data, eval=FALSE}
 #http://www.worldclim.org/formats1
 
 #tmean , prec ; 12 data layers 1 for each month
@@ -61,7 +63,7 @@ source(file="libraries_20190816.R") #install packages, use old vegan
 
 ```
 
-```{r load data and subset, include=FALSE}
+```{r, load data and subset, include=FALSE}
 #echo=FALSE do not incldue code when knitting doc
 #include=FALSE supress this output when knitting doc
 
@@ -79,7 +81,7 @@ length(unique(df1$country))
 df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.numeric(df1$X_cmin)
 ```
 
-```{r initial plots, echo=FALSE}
+```{r, initial plots, echo=FALSE}
 plot(df1$country); axis(2,cex.axis=1)
 plot(df1$depth.end)
 plot(df1$param_group, main="Parameters - Reponse Variables")
@@ -113,8 +115,7 @@ df1 %>% dplyr::select(ACC, crop_group, crop_system, depth.start ,  depth.end ,  
 df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result
 ```
 
-
-```{r preliminary response ratios, eval=FALSE}
+```{r, preliminary response ratios, eval=FALSE}
 #preliminary ratios for effect size
 hist(log(df$X_a))
 
@@ -129,11 +130,11 @@ mean(percent.change.fert, na.rm=TRUE)
 df2<-cbind(df1, ratio_min, ratio_fert)
 
 df.c<-subset(df2, param_group == "C")
-
+ 
 plot()
 ```
 
-```{r determine ranges, eval=FALSE}
+```{r, determine ranges, eval=FALSE}
 df<-df2
 
 #crop
@@ -159,12 +160,9 @@ levels(df$crop)
 ```
 
 
-## Previous analyses
-All of the code saved here is for access to from previous stats
-```{r, eval=FALSE}
-###############################################################################################
-##########################  OLD CODE BELOW THIS LINE ########################################
-###############################################################################################
+#### Previous analyses
+Additional code is also saved within the .Rmd script from previous statistical analyses for easy access.
+```{r, eval=FALSE, include=FALSE}
 names(df1) <- gsub(".Concentration", ".pXRF", names(df1))
 names(df1) <- gsub(".Error1s", ".E", names(df1))
 df1$layer_bot<-as.factor(df1$layer_bot); df1$veg_age<-as.factor(df1$veg_age); df1$sample_position<-as.factor(df1$sample_position)
@@ -207,7 +205,7 @@ df.long<-cbind(df.long.ppm, SD)
  df$PPM<-as.numeric(df$PPM)
 ```
 
-```{r check for normality, eval=FALSE}
+```{r, check for normality, eval=FALSE, include=FALSE}
 str(df.vine)
 #colnames(df.vine)
 
@@ -284,11 +282,7 @@ qqnorm(lm); qqline(lm)
 sm<-sqrt(m); shapiro.test(sm)
 ```
 
-```{r transformation of metals data, eval=FALSE}
-#see "attempted" in 'extra' code below
-```
-
-```{r C linear regression models / ANOVA, eval=FALSE}
+```{r, C linear regression models / ANOVA, eval=FALSE, echo=FALSE}
  #set up liner mixed effects model, with Block as a fixed effect
 #lmer.c<-lmer (log(C) ~ sample_position*layer_bot+ (1|veg_age) 
 #                    + (1|veg_age:sample_position), data=df.vine)
@@ -324,7 +318,7 @@ cont2.table<-summary(cont2$contrasts); cont2.table
 cont2.table[(cont2.table$p.value<=.05),]
 ```
 
-```{r N linear regression models / ANOVA, eval=FALSE}
+```{r, N linear regression models / ANOVA, eval=FALSE, echo=FALSE}
  #set up liner mixed effects model, with Block as a fixed effect
 #lmer.n<-lmer (sqrt(N) ~ sample_position*layer_bot+ (1|veg_age) 
 #                    + (1|veg_age:sample_position), data=df.vine)
@@ -360,7 +354,7 @@ cont2.table<-summary(cont2$contrasts); cont2.table
 cont2.table[(cont2.table$p.value<=.05),]
 ```
 
-```{r C and N graph, eval=FALSE}
+```{r, C and N graph, eval=FALSE, echo=FALSE}
 
 df.c.plot<-df.vine
 names(df.c.plot)[c(11,22, 24)]<-c("Months",  "Position", "Depth")
@@ -404,7 +398,7 @@ p.n.pos
 
 ```
 
-```{r Metals - check for correlations between response variables, eval=FALSE}
+```{r, Metals - check for correlations between response variables, eval=FALSE, echo=FALSE}
 #Pearson correlation for normal variables
 df.corr<-cbind(df.vine[26:length(df.vine)]) 
 spear<-rcorr(x=as.matrix(df.corr), y=as.matrix(df.corr), type = "spearman") #type can be pearson/spearman 
@@ -420,7 +414,7 @@ spear<-rcorr(x=as.matrix(df.corr), y=as.matrix(df.corr), type = "spearman") #typ
 #>.60			Rb/K, Si/Al,	Ca/Cu, Co/Fe,	Mn/Co, Cu/S, Mn/Fe,LE/S,Th/Mo,Nb/Y
 ```
 
-```{r METALS check RCRA metals/standards, eval=FALSE}
+```{r, METALS check RCRA metals/standards, eval=FALSE, echo=FALSE}
 #   Element	D-Limit (ppm)	EPA alllowable limits
 #24	Cr    	<10ppm	      5x
 #33	As	    <5ppm	        5x  6ppm  .1-40
@@ -448,7 +442,7 @@ df.vine.error$Mg.E
 #As, Mg, Cr, Fe, Mn
 ```
 
-```{r Anova - seperate for each metals of interest, eval=FALSE}
+```{r, Anova - seperate for each metals of interest, eval=FALSE, echo=FALSE}
 #log(Cu), boxcox/KW(Pb), boxcox/KW(Ni), Zn, boxcox/KW(As), outliers-Mg, boxcox(Cr), Fe, log(Mn) 
 #(NO Cd values)
 
@@ -487,7 +481,7 @@ Zn.model <-(aov(Zn.pXRF~layer_bot*sample_position*veg_age, df.m))
 summary(Zn.model)
 ```
 
-```{r MANOVA of metals, eval=FALSE}
+```{r, MANOVA of metals, eval=FALSE, echo=FALSE}
 # variable to combine: REMOE: Cd.pXRF, Bi.pXRF,  Ag.pXRF, Sb.pXRF, Sn.pXRF,
 df.m<-dplyr::select(df.vine, veg_age, layer_bot, sample_position, Al.pXRF, As.pXRF, Ca.pXRF, Co.pXRF, Cr.pXRF, Cu.pXRF, Fe.pXRF, Hg.pXRF, K.pXRF, LE.pXRF, Mg.pXRF, Mn.pXRF, Mo.pXRF, Nb.pXRF,Ni.pXRF, P.pXRF, Pb.pXRF, Rb.pXRF, S.pXRF,  Se.pXRF, Si.pXRF,  Sr.pXRF, Th.pXRF, Ti.pXRF, U.pXRF, V.pXRF, W.pXRF, Y.pXRF, Zn.pXRF, Zr.pXRF)
 names(df.m)<-str_replace(names(df.m), ".pXRF", "")
@@ -515,7 +509,7 @@ names(m2)
 
 ```
 
-```{r graph metals, eval=FALSE}
+```{r, graph metals, eval=FALSE, echo=FALSE}
 pd <- position_dodge(.5)
 
 #prep dataframe for the metals graph
@@ -660,7 +654,7 @@ p.Fe<-ggplot(data=df.Fe, aes(x=Months, y=PPM, fill=Position)) +
 
 ```
   
-```{r extra code, eval=FALSE}  
+```{r, extra code, eval=FALSE, echo=FALSE}  
 
    
 #Attempted
