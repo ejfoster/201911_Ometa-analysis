@@ -9,7 +9,8 @@
 #install.packages(c("doBy",  "stringr", "ggthemes", "plyr", lmerTest", 
 #                  "corrplot", "gplots", "grid", "ape", "devtools", "rgl", "fdrtool", "qiimer", 
 #                  "pheatmap","cluster","NbClust", "RColorBrewer", "corrgram","candisc", "data.table", 
-#                   "car", "rgl", "stringi", "MTS", "Mass", "mixOmics", "httpuv",  "indicspecies", "htmltools", "lsmeans", "e1071", 
+#                   "car", "rgl", "stringi", "MTS", "Mass", "mixOmics", "httpuv",  "indicspecies", 
+#                   "htmltools", "lsmeans", "e1071", 
 #                   "bios2mds", ##needed for phyloseq
 #                   "RVAideMemoire","rgdal", "raster", "HH", "jvm", "ggforce", "outliers",
 #                   "metafor", "metaforest", "sp", "mmpf", "rgdal",

@@ -5,27 +5,13 @@ editor_options:
   chunk_output_type: console
 ---
 
-#### Goal: Analalyze data on soil organic amendment impact on soil carbon pools > 20cm in depth
+#### Goal: Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 
 #### Notes:
        #echo=false supresses code; include=false supressed output
         #Last working on:
         1) COMPLETE Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
         2) Separating out POM/MAOM data
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
-
-```{r, prelimary - load packages, include=FALSE}
-#include=FALSE supress this output when knitting doc
-uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis") #save long name as user directory uzdir
-setwd(paste(uzdir))  #set your working directory/file
-source(file="libraries_20190816.R") #install packages, use old vegan 
-```
 
 ```{r, climate data, eval=FALSE}
 #http://www.worldclim.org/formats1
@@ -63,13 +49,30 @@ source(file="libraries_20190816.R") #install packages, use old vegan
 
 ```
 
+```{r, prelimary - load packages, include=FALSE}
+#include=FALSE supress this output when knitting doc
+uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis/Ometa2019") #save long name as user directory uzdir
+setwd(paste(uzdir))  #set your working directory/file
+source(file="EJF_libraries.R") #install packages, use old vegan 
+
+#levels(df1$param)
+#levels(df1$crop)
+#names(df1)
+
+#columns of importance
+
+df1 %>% dplyr::select(X3,ACC, crop_group, crop_system, depth.start ,  depth.end ,  param ,  param_group ,  units , amend ,  irrigation ,  tillage_type , tillage_depth, till_depth_group, country , elevation ,  lat_group ,  MAT ,  MAP ,  duration_group,  duration_even ,  clay_group ,  pH_group ,  SOC_group, X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df 
+  
+df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result 
+```
+
 ```{r, load data and subset, include=FALSE}
 #echo=FALSE do not incldue code when knitting doc
 #include=FALSE supress this output when knitting doc
 
 #rm(list = ls()) # if you want to reset your environment by deleating everything
 df1<-read.csv("Ometa_table.csv", header=T, na.strings= c(""," ", "na", "nd", "NA"), skip=2)
-str(df1)
+str(df1) 
 ncol(df1)
 nrow(df1)
 #colnames(df1)
@@ -82,7 +85,7 @@ df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.num
 ```
 
 ```{r, initial plots, echo=FALSE}
-plot(df1$country); axis(2,cex.axis=1)
+plot(df1$country); axis(2,cex.axis=1) 
 plot(df1$depth.end)
 plot(df1$param_group, main="Parameters - Reponse Variables")
 plot(df1$tillage_type, main = "Tillage Groups")
@@ -102,37 +105,83 @@ plot(df1$duration_group, main="Study Duration", xlab= "Years")
    plot(df1$till_depth_group, main ="Tillage depths")
    hist(df1$pH, xlab="pH")  
    hist(df1$SOC_g.kg, main="Initial SOC", xlab="SOC g/kg")
-
-   
-#levels(df1$param)
-#levels(df1$crop)
-#names(df1)
-
-#columsn of importance
-
-df1 %>% dplyr::select(ACC, crop_group, crop_system, depth.start ,  depth.end ,  param ,  param_group ,  units , amend ,  irrigation ,  tillage_type , tillage_depth, till_depth_group, country , elevation ,  lat_group ,  MAT ,  MAP ,  duration_group,  duration_even ,  clay_group ,  pH_group ,  SOC_group, X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df
-  
-df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result
 ```
 
 ```{r, preliminary response ratios, eval=FALSE}
-#preliminary ratios for effect size
-hist(log(df$X_a))
+#current df's = df and df.result
+#calculate SD from SE= SD/ sqrt(n)  => SE*sqrt(n)
 
-ratio_min<-log(df1$X_a/df1$X_cmin)
-    percent.change.min<-(exp(ratio_min) -1)*100
-    mean(percent.change.min, na.rm=TRUE)
+#if the value is Na, replace with SD calculated from SE
+SD.to.replace<-which(is.na(df$SD_a)); length(SD.to.replace) #of 4079 obs
+df$StDev_a<-df$SD_a
+df$StDev_a<-ifelse(is.na(df$StDev_a),  #if SD = NA
+         df[SD.to.replace ,]$SE_a * sqrt(df[SD.to.replace ,]$N_a), #replace with SE * sqrt of n
+       df$StDev_a)
 
-ratio_fert<-log(df1$X_a/df1$X_cf)
-    percent.change.fert<-(exp(ratio_fert) -1)*100
-mean(percent.change.fert, na.rm=TRUE)
+#calculate the weight of each study based off of observation numbers (Hedges adn Olkin 1985)
+  df$w.cf<-(df$N_a*df$N_cf)/(df$N_a+df$N_cf)
+  df$w.min<-(df$N_a*df$N_cmin)/(df$N_a+df$N_cmin)
 
-df2<-cbind(df1, ratio_min, ratio_fert)
+#calculate response ratio for each observation:
+ratio_min<-log(df$X_a/df$X_cmin)
+   nan.check<-df[which(is.nan(ratio_min)), ]; names(nan.check) #determine which values are NaN
+   nan.check[c(6, 24:ncol(nan.check))] #print which values are NaN
+    percent.change.min<-(exp(ratio_min) -1)*100 #mean % change = (e^ln(rr)-1)*100
+    
+ratio_fert<-log(df$X_a/df1$X_cf)
+    percent.change.fert<-(exp(ratio_fert)-1)*100 
 
-df.c<-subset(df2, param_group == "C")
+#create new df2 with ratios calculated for each obs
+df2<-cbind(df, ratio_min, percent.change.min, ratio_fert, percent.change.fert) #create df with response ratios
+
+#remove NaNs/ Inf
+is.na(df2$ratio_min) <- is.infinite(df2$ratio_min)
+is.na(df2$ratio_min) <- is.nan(df2$ratio_min)
+is.na(df2$ratio_fert) <- is.infinite(df2$ratio_fert)
+is.na(df2$ratio_fert) <- is.nan(df2$fert_min)
+
+df.c<-subset(df2, param_group == "C") #subset by carbon parameters only, obs=2165
  
-plot()
+#check normality of ratio distribution 
+df.temp<-df.c
+f<-df.temp$ratio_fert
+m<-df.temp$ratio_min
+hist(f); hist(m)   
+qqnorm(f);qqline(f)
+qqnorm(m);qqline(m)
+shapiro.test(f) #not normal
+shapiro.test(m) #not normal
+
+str(df.c)
+#estimate error
+df.est<- df.c %>% 
+  group_by(ACC, param, depth.end) %>% 
+  mutate(min.var = var(df.c$ratio_min), fert.var = var(df.c$ratio_fert))
+df.est
+
+#how many studies have actual measurement of error? 28% of controls 36% amend
+nrow(df.c)
+se.error<-(1-length(which(is.na(df.c$SE_cf)))/nrow(df.c))*100
+sd.error<-(1-length(which(is.na(df.c$SD_cf)))/nrow(df.c))*100
+control.error<-se.error+sd.error
+se.am.error<-(1-length(which(is.na(df.c$SE_a)))/nrow(df.c))*100
+sd.am.error<-(1-length(which(is.na(df.c$SD_a)))/nrow(df.c))*100
+error.amend<-se.am.error+sd.am.error; error.amend
 ```
+
+```{r, calculate }
+res.rma <- rma(stack.loss, vi, mods =  ~ Air.Flow + Water.Temp + Acid.Conc., data=df)
+
+rma1<-rma(ratio_fert, vi=fert.var, data=df.est)
+
+#calcualte response ratio per parameter per study
+df %>% 
+  group_by(ACC, param) %>%
+  mutate(rr.min = log(df$X_a/df$X_cmin), rr.fert = log(df$X_a/df$X_cf))
+  #summarise_each(funs(mean), Cancelled, Diverted)
+```
+
+
 
 ```{r, determine ranges, eval=FALSE}
 df<-df2
