@@ -7,13 +7,74 @@ editor_options:
 
 #### Goal: Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 
+mixed model for meta-analysis with maximum likelihood
+response = carbon stock 
+
+
+a. Is the effect different from zero? (are there outliers of effect sizes?)
+b. Examine degree of heterogeneity of effect sizes
+        -Account for between study varition (2nd source of heterogeneity)
+c. Estimate standard deviation of studies
+       (1) assume normal and S = 1 ; (2) impute from studies with data (SD/mean ratio for complete studies AND (3) regression S = alpha +beta*n)
+       
+d. Calculate weight of each study (based on sample size of control and trt) (p205)
+e. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
+       -metafor mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
+f. Make statistical inference to derive estimates, test hypothese, make deicions based on the model
+       -calculate Q for each moderator? Or calucate I2 (pg 112) 
+       -bootstrappping and 95% CI on factors (p 123)
+g. Check assumptions
+       (1) fit assumptions of statisitcal models
+       (2) test publicaiton bias (p219)
+       (3) check stat power of tests
+       (4) test sensitivity of results to inclusion/exlustion of data - does it change main conclusions
+              -imputed SD, estimated 1, only complete studies
+              -w and w/out the outliers
+              -leave one out (studies or categories)
+       (5) check manuscripts (Ch 20)
+h. Discuss generaliziability and limitations
+        -SE assumed rather than SD when not recorded (more conservative)
+i. Gaps where more primary studies are needed?
+
+
+#### Research Quesitons
+Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
+How does amendment stabilizaiton of SC change with depth?
+Do effects differ between minimum controls vs fertilzed controls?
+
+0 *** Assess correlation of moderators*** -> find a group where moderators are not confounded and run analysis -results are different than the global effects?
+Do the following moderators help predict change in soil carbon stocks:
+1. Amendment type
+2. Amendment rate
+3. Amendment C:N ratio
+4. C pool  
+5. Time since amendment start
+
+Environmental factors
+6. MAP
+7. MAT
+8. MAP/MAT
+9. Time since study start
+10. **Lattitude**
+
+Initial soil proerpties
+11. Texture
+12. Initial SOC
+13. pH
+
+Management
+14. Crop System
+15. Irrigation type
+16. Fertilizer input
+
+
 #### Notes:
        #echo=false supresses code; include=false supressed output
-        #Last working on:
-        1) COMPLETE Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
-        2) Separating out POM/MAOM data
-
-```{r, climate data, eval=FALSE}
+COMPLETED
+        1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
+        2) convert SE to SD
+        3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios
+```{r, 0. climate data, eval=FALSE}
 #http://www.worldclim.org/formats1
 
 #tmean , prec ; 12 data layers 1 for each month
@@ -49,7 +110,7 @@ editor_options:
 
 ```
 
-```{r, prelimary - load packages, include=FALSE}
+```{r, 1. prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
 uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis/Ometa2019") #save long name as user directory uzdir
 setwd(paste(uzdir))  #set your working directory/file
@@ -59,14 +120,9 @@ source(file="EJF_libraries.R") #install packages, use old vegan
 #levels(df1$crop)
 #names(df1)
 
-#columns of importance
-
-df1 %>% dplyr::select(X3,ACC, crop_group, crop_system, depth.start ,  depth.end ,  param ,  param_group ,  units , amend ,  irrigation ,  tillage_type , tillage_depth, till_depth_group, country , elevation ,  lat_group ,  MAT ,  MAP ,  duration_group,  duration_even ,  clay_group ,  pH_group ,  SOC_group, X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df 
-  
-df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result 
 ```
 
-```{r, load data and subset, include=FALSE}
+```{r, 2. load data and subset, include=FALSE}
 #echo=FALSE do not incldue code when knitting doc
 #include=FALSE supress this output when knitting doc
 
@@ -80,11 +136,32 @@ nrow(df1)
 #number of studies included
 length(unique(df1$ACC))
 length(unique(df1$country))
-length(unique(df1$country))
 df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.numeric(df1$X_cmin)
+
+
+names(df1)
+#select important columns
+df1 %>% dplyr::select(X3,ACC, crop_group, crop_system, depth.start ,  depth.end ,  param ,  param_group ,  units , amend ,  irrigation ,  tillage_type , tillage_depth, till_depth_group, country , elevation ,  lat_group , lat.dec.degree, pH,  MAT ,  MAP ,  duration_group,  duration_even ,  clay_group ,  pH_group ,  SOC_g.kg, SOC_int_group,weight.dry,  C.rate_Mg.ha, C.N_rate, N.amend_g.kg, BD, X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df 
+  
+df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result 
+
+#many data types are extracted, select soil carbon as the initial response parameter
+ #subgroups will be used to addresss questions about stability
+param<-unique(df1$param)
+  df1[which(df1$param=="SOC"|df1$param=="C"), ]$ACC %>% unique() %>% length() #SOC = 49
+  
+
+#C = 10
+df1[which(df1$param=="SOC"), ]$ACC %>% unique() %>% length() #SOC = 46
+df1[which(df1$param=="POM"| df1$param=="LF"), ]$ACC %>% unique() %>% length() #LF+POM = 4
+df1[which(df1$param=="C_POM"), ]$ACC %>% unique() %>% length() #C_POM = 1
+df1[which(df1$param=="C_MAOM" | df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3
+df1[which(df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3 
 ```
 
-```{r, initial plots, echo=FALSE}
+```{r, 3. initial plots, echo=FALSE}
+plot(df1$amend_group_brd, df1$C.N_rate)
+
 plot(df1$country); axis(2,cex.axis=1) 
 plot(df1$depth.end)
 plot(df1$param_group, main="Parameters - Reponse Variables")
@@ -104,18 +181,19 @@ plot(df1$duration_group, main="Study Duration", xlab= "Years")
     plot(df1$irrigation_group, main ="Cateogry of Irrigation")
    plot(df1$till_depth_group, main ="Tillage depths")
    hist(df1$pH, xlab="pH")  
-   hist(df1$SOC_g.kg, main="Initial SOC", xlab="SOC g/kg")
+   plot(df1$SOC_int_group, main="Initial SOC", xlab="SOC g/kg")
+   plot(df1)
 ```
 
-```{r, preliminary response ratios, eval=FALSE}
-#current df's = df and df.result
+```{r, 4. preliminary response ratios, eval=FALSE}
+#current dataframess = df and df.result
 #calculate SD from SE= SD/ sqrt(n)  => SE*sqrt(n)
 
 #if the value is Na, replace with SD calculated from SE
 SD.to.replace<-which(is.na(df$SD_a)); length(SD.to.replace) #of 4079 obs
 df$StDev_a<-df$SD_a
 df$StDev_a<-ifelse(is.na(df$StDev_a),  #if SD = NA
-         df[SD.to.replace ,]$SE_a * sqrt(df[SD.to.replace ,]$N_a), #replace with SE * sqrt of n
+         df[SD.to.replace ,]$SE_a * sqrt(df[SD.to.replace, ]$N_a), #replace with SE * sqrt of n
        df$StDev_a)
 
 #calculate the weight of each study based off of observation numbers (Hedges adn Olkin 1985)
@@ -140,37 +218,75 @@ is.na(df2$ratio_min) <- is.nan(df2$ratio_min)
 is.na(df2$ratio_fert) <- is.infinite(df2$ratio_fert)
 is.na(df2$ratio_fert) <- is.nan(df2$fert_min)
 
-df.c<-subset(df2, param_group == "C") #subset by carbon parameters only, obs=2165
- 
+df.c<-subset(df2, param == "C" |param == "SOC" ) #subset by carbon parameters only, obs=537
+
+#calculate carbon stocks from g.kg  (g.kg/1000)*BD*(depth.end-depth.start) = g/cm2
+# Convert to t/ha => g/cm2 * (1Mg/ 1,000,000g)*(1*10^8cm2/ha) = 100
+   #(1/1000000)*(1*10^8/1) 
+df.c$X_a_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$X_cmin_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_cmin/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_cmin/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$X_cf_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_cf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+  
+#convert error to metric t/ha (or Mg/ha)
+df.c$SD_a_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$SD_cmin_stock.SE<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_cmin/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_cmin/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$SD_cf_stock.SE<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_cf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+
+mean(df.c$ratio_fert, na.rm=TRUE); 
+mean(df.c$ratio_min, na.rm=TRUE)
+
+colnames(df.c)
 #check normality of ratio distribution 
 df.temp<-df.c
 f<-df.temp$ratio_fert
 m<-df.temp$ratio_min
 hist(f); hist(m)   
 qqnorm(f);qqline(f)
-qqnorm(m);qqline(m)
+qqnorm(m);qqline(m) #1 outlier
 shapiro.test(f) #not normal
 shapiro.test(m) #not normal
 
-str(df.c)
-#estimate error
-df.est<- df.c %>% 
-  group_by(ACC, param, depth.end) %>% 
-  mutate(min.var = var(df.c$ratio_min), fert.var = var(df.c$ratio_fert))
-df.est
+#where are the outliers? for ratio.min and ratio.fert
+#mean.ratio<- df2 %>%
+#  group_by(ACC) %>%
+#  summarise(mean.f = mean(ratio_fert),
+#            mean.min = mean(ratio_min), n= n()); mean.ratio
 
-#how many studies have actual measurement of error? 28% of controls 36% amend
-nrow(df.c)
-se.error<-(1-length(which(is.na(df.c$SE_cf)))/nrow(df.c))*100
-sd.error<-(1-length(which(is.na(df.c$SD_cf)))/nrow(df.c))*100
-control.error<-se.error+sd.error
-se.am.error<-(1-length(which(is.na(df.c$SE_a)))/nrow(df.c))*100
-sd.am.error<-(1-length(which(is.na(df.c$SD_a)))/nrow(df.c))*100
-error.amend<-se.am.error+sd.am.error; error.amend
+#mean.ratio<- df2 %>%
+#  group_by(ACC) %>%
+#summarise_all(funs(mean, n), na.rm = TRUE); mean.ratio
 ```
 
-```{r, calculate }
-res.rma <- rma(stack.loss, vi, mods =  ~ Air.Flow + Water.Temp + Acid.Conc., data=df)
+```{r, impute error}
+error.amend<-(1-length(which(is.na(df.c$StDev_a)))/nrow(df.c))*100; error.amend #33% have error reported
+```
+
+```{r, check for correlation among parameters}
+colnames(df1)
+#pH and MAT?
+param.corr<-select(df1, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg)
+pear<-rcorr(as.matrix(param.corr), type = "pearson")
+
+```
+
+```{r, mixed-effect meta-analysis (regression) }
+cf.rma1 <- rma(yi=df.c$ratio_fert, vi=, mods =  ~ amend + C.rate_Mg.ha + lat_group, data=df.c)
+colnames(df.c)
+?rma
+
+mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
 
 rma1<-rma(ratio_fert, vi=fert.var, data=df.est)
 
@@ -180,7 +296,6 @@ df %>%
   mutate(rr.min = log(df$X_a/df$X_cmin), rr.fert = log(df$X_a/df$X_cf))
   #summarise_each(funs(mean), Cancelled, Diverted)
 ```
-
 
 
 ```{r, determine ranges, eval=FALSE}
