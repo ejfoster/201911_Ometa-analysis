@@ -7,10 +7,15 @@ editor_options:
 
 #### Goal: Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 
-mixed model for meta-analysis with maximum likelihood
-response = carbon stock 
+mixed model for meta-analysis (regression?) with maximum likelihood 
+       (hierarchical w study and depth as groups) OR run different analyssis every 20cm
+parameter = carbon stock 
+moderators = initial conditions, environment, management
+covariate = length of study (months)
 
+I2 test of each moderator?
 
+RESEARCH QUESTIONS
 a. Is the effect different from zero? (are there outliers of effect sizes?)
 b. Examine degree of heterogeneity of effect sizes
         -Account for between study varition (2nd source of heterogeneity)
@@ -39,7 +44,7 @@ i. Gaps where more primary studies are needed?
 
 #### Research Quesitons
 Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
-How does amendment stabilizaiton of SC change with depth?
+How does amendment stabilizaiton of SC change with depth? with time?
 Do effects differ between minimum controls vs fertilzed controls?
 
 0 *** Assess correlation of moderators*** -> find a group where moderators are not confounded and run analysis -results are different than the global effects?
@@ -74,7 +79,9 @@ COMPLETED
         1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
         2) convert SE to SD
         3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios
-```{r, 0. climate data, eval=FALSE}
+        4) Imputed error in the form of SD with ratios (SD/X'mean') and regrssion SD= alpha +beta (N)
+        5) 
+```{r, 0.0 climate data, eval=FALSE}
 #http://www.worldclim.org/formats1
 
 #tmean , prec ; 12 data layers 1 for each month
@@ -110,7 +117,7 @@ COMPLETED
 
 ```
 
-```{r, 1. prelimary - load packages, include=FALSE}
+```{r, 0.1 prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
 uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis/Ometa2019") #save long name as user directory uzdir
 setwd(paste(uzdir))  #set your working directory/file
@@ -119,7 +126,6 @@ source(file="EJF_libraries.R") #install packages, use old vegan
 #levels(df1$param)
 #levels(df1$crop)
 #names(df1)
-
 ```
 
 ```{r, 2. load data and subset, include=FALSE}
@@ -137,11 +143,18 @@ nrow(df1)
 length(unique(df1$ACC))
 length(unique(df1$country))
 df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.numeric(df1$X_cmin)
-
+names(df1)
 
 names(df1)
 #select important columns
-df1 %>% dplyr::select(X3,ACC, crop_group, crop_system, depth.start ,  depth.end ,  param ,  param_group ,  units , amend ,  irrigation ,  tillage_type , tillage_depth, till_depth_group, country , elevation ,  lat_group , lat.dec.degree, pH,  MAT ,  MAP ,  duration_group,  duration_even ,  clay_group ,  pH_group ,  SOC_g.kg, SOC_int_group,weight.dry,  C.rate_Mg.ha, C.N_rate, N.amend_g.kg, BD, X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df 
+df1 %>% dplyr::select(X3,ACC, 
+                      crop_group, crop_system, irrigation, tillage_type , tillage_depth, till_depth_group, Nfert_rate,
+                      depth.start ,  depth.end ,  param ,  param_group ,  units , 
+                      time.n.mos,  duration_group,  duration_even , 
+                       lat.dec.degree, country , elevation ,  lat_group , MAT ,  MAP ,
+                      pH, clay, clay_group ,  pH_group ,  SOC_g.kg, SOC_int_group, BD,
+                      amend, amend_group, weight.dry,  C.rate_Mg.ha, C.N_rate, N.amend_g.kg,  
+                      X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df 
   
 df1 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin)-> df.result 
 
@@ -153,16 +166,16 @@ param<-unique(df1$param)
 
 #C = 10
 df1[which(df1$param=="SOC"), ]$ACC %>% unique() %>% length() #SOC = 46
-df1[which(df1$param=="POM"| df1$param=="LF"), ]$ACC %>% unique() %>% length() #LF+POM = 4
-df1[which(df1$param=="C_POM"), ]$ACC %>% unique() %>% length() #C_POM = 1
-df1[which(df1$param=="C_MAOM" | df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3
-df1[which(df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3 
+#df1[which(df1$param=="POM"| df1$param=="LF"), ]$ACC %>% unique() %>% length() #LF+POM = 4
+#df1[which(df1$param=="C_POM"), ]$ACC %>% unique() %>% length() #C_POM = 1
+#df1[which(df1$param=="C_MAOM" | df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3
+#df1[which(df1$param=="MAOM"), ]$ACC %>% unique() %>% length() #C_POM = 3 
 ```
 
 ```{r, 3. initial plots, echo=FALSE}
-plot(df1$amend_group_brd, df1$C.N_rate)
+plot(df1$amend_group_brd, df1$C.N_rate) 
 
-plot(df1$country); axis(2,cex.axis=1) 
+plot(df1$country); axis(2,cex.axis=1)  
 plot(df1$depth.end)
 plot(df1$param_group, main="Parameters - Reponse Variables")
 plot(df1$tillage_type, main = "Tillage Groups")
@@ -172,6 +185,8 @@ hist(df1$lat.dec.degree, main= "Latitude")
      hist(df1$elevation, main= "Elevation", xlab="Elevation (m)")
      plot(df1$MAP, df1$MAT)
      hist(df1$year.zero, main="First Year of Study", xlab="Year")
+     hist(df1$exp_duration_mos, main="Study Length", xlab="Months of Experiment")
+      plot(df1$duration_even, main="First Year of Study", xlab="Year")
      hist(df1$MAP, main="Precipitation", xlab="MAP (mm)")
       hist(df1$MAT, main="Temperature", xlab="MAT (degrees C)")
 hist(df1$clay, main="Percent Clay", xlab="Clay (%)")
@@ -182,10 +197,10 @@ plot(df1$duration_group, main="Study Duration", xlab= "Years")
    plot(df1$till_depth_group, main ="Tillage depths")
    hist(df1$pH, xlab="pH")  
    plot(df1$SOC_int_group, main="Initial SOC", xlab="SOC g/kg")
-   plot(df1)
+  
 ```
 
-```{r, 4. preliminary response ratios, eval=FALSE}
+```{r, 4. response ratios and weights of ratios, eval=FALSE}
 #current dataframess = df and df.result
 #calculate SD from SE= SD/ sqrt(n)  => SE*sqrt(n)
 
@@ -216,7 +231,10 @@ df2<-cbind(df, ratio_min, percent.change.min, ratio_fert, percent.change.fert) #
 is.na(df2$ratio_min) <- is.infinite(df2$ratio_min)
 is.na(df2$ratio_min) <- is.nan(df2$ratio_min)
 is.na(df2$ratio_fert) <- is.infinite(df2$ratio_fert)
-is.na(df2$ratio_fert) <- is.nan(df2$fert_min)
+is.na(df2$ratio_fert) <- is.nan(df2$fert_min) 
+```
+
+```{r, 5. subset and calculate soil carbon stocks}
 
 df.c<-subset(df2, param == "C" |param == "SOC" ) #subset by carbon parameters only, obs=537
 
@@ -237,10 +255,10 @@ df.c$X_cf_stock<-ifelse(df.c$units == "g.kg",
 df.c$SD_a_stock<-ifelse(df.c$units == "g.kg", 
                        df.c$SD_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
                        df.c$SD_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
-df.c$SD_cmin_stock.SE<-ifelse(df.c$units == "g.kg", 
+df.c$SD_cmin_stock<-ifelse(df.c$units == "g.kg", 
                        df.c$SD_cmin/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
                        df.c$SD_cmin/1000) #else divides the kg/ha by 1000 to get Mg/ha
-df.c$SD_cf_stock.SE<-ifelse(df.c$units == "g.kg", 
+df.c$SD_fert_stock<-ifelse(df.c$units == "g.kg", 
                        df.c$SD_cf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
                        df.c$SD_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
 
@@ -253,8 +271,8 @@ df.temp<-df.c
 f<-df.temp$ratio_fert
 m<-df.temp$ratio_min
 hist(f); hist(m)   
-qqnorm(f);qqline(f)
-qqnorm(m);qqline(m) #1 outlier
+qqnorm(f);qqline(f) #1 outlier
+qqnorm(m);qqline(m) 
 shapiro.test(f) #not normal
 shapiro.test(m) #not normal
 
@@ -270,26 +288,120 @@ shapiro.test(m) #not normal
 ```
 
 ```{r, impute error}
-error.amend<-(1-length(which(is.na(df.c$StDev_a)))/nrow(df.c))*100; error.amend #33% have error reported
+#impute error over all depths/amendents for df.c
+
+str(df.c) #525 obs
+#estimate ratio to impute error for amend trt / fert control / min control
+est.SD.a<-sum(df.c$SD_a, na.rm=T)/sum(df.c$X_a,na.rm=T)
+est.SD.cf<-sum(df.c$SD_cf, na.rm=T)/sum(df.c$X_cf, na.rm=T)
+est.SD.cmin<-sum(df.c$SD_cmin, na.rm=T)/sum(df.c$X_cmin, na.rm=T)
+
+#ratio of SD/X (est.XXX) * mean to impute error (FYI, must use is.na not df.c$X=="NA" (won't return a TRUE, just na and ifelse doesn't work))
+df.c$SD_a_imp<-ifelse(is.na(df.c$SD_a), yes=df.c$X_a*est.SD.a, no=df.c$SD_a)
+df.c$SD_cf_imp<-ifelse(is.na(df.c$SD_cf), df.c$X_cf*est.SD.cf, df.c$SD_cf)
+df.c$SD_cmin_imp<-ifelse(is.na(df.c$SD_cmin), df.c$X_cmin*est.SD.cmin, df.c$SD_cmin)
+
+#amendment errors reported
+error.amend<-(1-length(which(is.na(df.c$StDev_a)))/nrow(df.c))*100; error.amend #36% have error reported
+
+#impute error via regression S = alpha +beta(n)
+  lm(df.c$SD_cf ~ df.c$N_cf, na.action=na.omit) #cf intercept/alpha= 26.430 m/beta= -6.166
+ lm(df.c$SD_cmin ~ df.c$N_cmin, na.action=na.omit) #cmin intercept/alpha= 12.210 m/beta= -2.461 
+  lm(df.c$SD_a ~ df.c$N_a, na.action=na.omit) #a intercept/alpha= 25.731 and m/beta=-5.496
+
+#regression to impute error save as new column
+df.c$SD_cf_reg<-ifelse(is.na(df.c$SD_cf), 26.430-6.166*(df.c$N_cf), df.c$SD_cf)
+df.c$SD_cmin_reg<-ifelse(is.na(df.c$SD_cmin), 12.210-2.461*(df.c$N_cmin), df.c$SD_cmin)
+df.c$SD_a_reg<-ifelse(is.na(df.c$SD_a), 25.731-5.496*(df.c$N_a), df.c$SD_a)
+
+```
+
+```{r, bootstrap for 95% CI, on a single depth}
+#can also play with boot.mle() for a fitted model
+
+#create one depth variable
+df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
+#df.sub<-subset(df.c, depth <= 20); length(df.sub) #subset by depth
+
+#create function to resample with
+boot_mean <- function(df_vector, resample_indices) {
+    mean(df_vector[resample_indices])
+}
+set.seed(12345)
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
+
+#############
+#data frame control fertilized
+##############
+#remove rows with NA for response ratio - as these obvs cannot be analyzed
+mydf.fert<-df.c[which(!is.na(df.c$ratio_fert)),]  
+mean(mydf.fert$ratio_fert) #mean response ratio
+#mean(mydf.fert$ratio_fert)-1 #percent change RR=1 no effect (Kallenbach)
+mean(mydf.fert$percent.change.fert) #percent change (Pressler 2018)
+
+results.fert <- boot(data=mydf.fert$ratio_fert, statistic=boot_mean, R=1000, weights=mydf.fert$w.cf) # dist looks more evenly distriuted around mean without the weights
+                #formula=ratio_fert~depth) #strata=ACC?depth?
+plot(results.fert)
+summary(results.fert) #mean RR = .14995
+boot.ci(results.fert) #,type="bca") #significant if do not inclue 1
+ #Percentile 95%   ( 0.1270,  0.1736 )
+
+#############
+#data frame control zero/minimum inputs
+##############
+mydf.min<-df.c[which(!is.na(df.c$ratio_min)),]
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
+ 
+mean(mydf.min$ratio_min) # mean RR
+#mean(mydf.min$ratio_min)-1 #percent change (Kallenbach 2011)
+mean(mydf.min$percent.change.min) #percent change (Pressler 2018)
+
+#create function to resample with
+  #missing 4 weights - need
+
+results.min <- boot(data=mydf.min$ratio_min, statistic=boot_mean, R=1000) #, weights=mydf.min$w.min) #missing 4 weights
+                #formula=ratio_fert~depth) #strata=ACC?depth?
+plot(results.min)
+boot.ci(results.min) #,type="bca")
+
 ```
 
 ```{r, check for correlation among parameters}
 colnames(df1)
+hist(df.c$depth.end) 
+
+hist(df.c$depth)  
+
 #pH and MAT?
 param.corr<-select(df1, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg)
-pear<-rcorr(as.matrix(param.corr), type = "pearson")
-
+pear<-rcorr(as.matrix(param.corr), type = "pearson") 
+ 
 ```
 
 ```{r, mixed-effect meta-analysis (regression) }
-cf.rma1 <- rma(yi=df.c$ratio_fert, vi=, mods =  ~ amend + C.rate_Mg.ha + lat_group, data=df.c)
-colnames(df.c)
-?rma
+#Auto correlation rma: https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv
+names(df.c)
 
-mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
+#fertilized control studies
+cf.rma.ar <- rma.mv(data=mydf.fert, ratio_fert ~ MAP+clay+amend_group , random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") ; cf.rma.ar
 
-rma1<-rma(ratio_fert, vi=fert.var, data=df.est)
+min.rma1 <- rma.mv(data=df.sub, ratio_min ~ MAP+clay+amend_group,  V=SD_cmin_imp, W=w.min, method="REML") #level=95 
+min.rma1
 
+cf.rma1 <- rma.mv(data=df.sub, ratio_fert ~ MAP+clay+amend_group,  V=SD_cf_imp, W=w.cf, method="REML") #level=95 
+cf.rma1
+
+cf.rma1 <- rma.mv(data=df.sub, ratio_cf ~ weight.dry , random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") #level=95 
+
+#from github Gurevitch et al https://github.com/KatharinaGerstner/LUBDES_MA
+#rma.mv(yi=Log.RR, V=M.matrix(modelDataRichness)+diag(Log.RR.Var),                                    mods=~LUI.range.level-1, 
+#                                random = list(~1|Study.Case, ~1|Study.ID),
+#                             slab=paste(Study.Case, Low.LUI, High.LUI,sep="_"),
+#                    method="REML", tdist=FALSE, level=95,digits=4,data=modelDataRichness)       
+### Viechtbauer 2015 p 189: the random argument can also contain one (and only one!) formula of the form ~ inner | outer . 
+###   Effects or outcomes with different values/levels of the outer grouping variable/factor are assumed to be 
+###   independent, while effects or outcomes with the same value/level of the outer grouping variable/factor share 
+###   correlated random effects corresponding to the levels of the inner grouping variable/factor
 #calcualte response ratio per parameter per study
 df %>% 
   group_by(ACC, param) %>%
@@ -326,134 +438,7 @@ levels(df$crop)
 
 #### Previous analyses
 Additional code is also saved within the .Rmd script from previous statistical analyses for easy access.
-```{r, eval=FALSE, include=FALSE}
-names(df1) <- gsub(".Concentration", ".pXRF", names(df1))
-names(df1) <- gsub(".Error1s", ".E", names(df1))
-df1$layer_bot<-as.factor(df1$layer_bot); df1$veg_age<-as.factor(df1$veg_age); df1$sample_position<-as.factor(df1$sample_position)
-#examine imported data #colnames(df1) #str(df1) #tail(df1)
-
-#downsize dataframe
-df.factor<-df1[, c(1:24)]  #pick variables of interest names(df.factor)
-df.data<-df1[, c(76:length(df1))] #choose columns with data variables of interest
-df.chem<-df1[,76:82]
-df.xrf<- as.data.frame(df.data %>% dplyr::select(contains('.pXRF')))
-df.xrf<- mutate_all(df.xrf, function(x) as.numeric(as.character(x))); #str(df.xrf)
-names(df.xrf)
-df.error1<-df.data %>% dplyr::select(contains('.E')) # str(df.error1)
-df.error<-cbind(df.factor, df.chem, df.error1)
-df.percent<-cbind(df.factor,df.chem, df.xrf) #names(df.percent)
-df.wide<-cbind(df.factor, df.chem, df.data)
-
-df.percent$layer_bot<-as.integer(df.percent$layer_bot)
-
-df.v<-subset(df.percent, veg=="V_vineyard" & sample_method=="A_auger_10.16cm" & site_name== "2CIEPA") #subset of vineyards only
-names(df.v)
-df.vine<-df.v[rowSums(is.na(df.v[ , 32:length(df.v)])) == 0, ] #remove rows with all NAs
-#str(df.vine)
-df.v.error<-subset(df.error, veg=="V_vineyard" & sample_method=="A_auger_10.16cm" & site_name== "2CIEPA" ) #subset of vineyards only
-df.vine.error<-df.v.error[rowSums(is.na(df.v.error[ , 32:length(df.v.error)])) == 0, ]
-#put into long format names(df.vine)
-df.long.ppm<-gather(data=df.vine, key=Element, value=PPM, c(21:length(df.vine)))
-df.long.error<-gather(data=df.vine.error, key=Element, value=SD, c(21:length(df.vine.error)))
-#str(df.long.error); str(df.long.ppm)
-names(df.vine)
-SD<-as.numeric(df.long.error$SD)
-
-df.long<-cbind(df.long.ppm, SD)
-  #colnames(df.long); str(df.long)
-
-#after data wrangling is finished, save dataframe as simply df
-  df<-df.long #str(df)
-  
-#make ppm and error Numeric
- df$PPM<-as.numeric(df$PPM)
-```
-
-```{r, check for normality, eval=FALSE, include=FALSE}
-str(df.vine)
-#colnames(df.vine)
-
-#check C and N data
-#histogram
-hist(df.vine$C)
-hist(df.vine$N)
-plot(df.vine$layer_bot, df.vine$C)
-plot(df.vine$sample_position, df.vine$N)
-
-#qqplot
-qqnorm(df.vine$C); qqline(df.vine$C)
-qqnorm(df.vine$N); qqline(df.vine$N)
-
-#shapiro.wilk test
-shapiro.test(log(df.vine$C)) #log transform C
-shapiro.test(sqrt(df.vine$N)) #sqrt transform N
-
-sC<-log(df.vine$C)
-sN<-sqrt(df.vine$N)
-
-mean(df.vine$C, na.rm=T)
-mean(df.vine$N, na.rm=T)
-
-### Check normality of XRF data and pH
-#plot
-plot(df.vine$pH_CaCl2, df.vine$pH_H2O)
-
-#histogram
-hist(df.vine$pH_CaCl2)
-#hist(df.vine$electrical_conductivity)
-
-#plot
-plot(df.vine$layer_bot, df.vine$pH_CaCl2)
-plot(df.vine$sample_position, df.vine$pH_CaCl2)
-
-#qqplot
-qqnorm(df.vine$pH_CaCl2); qqline(df.vine$pH_CaCl2)
-
-#shapiro.wilk test
-shapiro.test(df.vine$pH_CaCl2)
-
-#plot
-mean(df.vine$pH_CaCl2, na.rm=T)
-mean(df.vine$pH_H2O, na.rm=T)
-plot(df.vine$pH_CaCl2, df.vine$pH_H2O)
-
-#remove columns with zeros
-df.sub<-df.vine[28:length(df.vine)][, colSums(df.vine[28:length(df.vine)] != 0, na.rm=T) > 0]
-#run test for normality
-df.normal.metals <- as.data.frame(sapply(df.sub, function(x) shapiro.test(log(x+1)))); 
-df.norm.all<-as.data.frame(t(df.normal.metals))[1:2] #transpose and take only stat and p-value
-df.normal<-df.norm.all[df.norm.all$p.value > .05,] #check which metals are NORMAL p value > .05
-df.normal #normal variables = Fe, K, Rb, Ti, V
-#log x+1 normal = Co, Fe, K, Mn, Rb, Ti, V, Zr
-
-#look at histograms for metals
-sapply(df.sub, function(x) hist(x))
-
-colnames(df.sub) #30 metals
-m<-df.sub$Zr.pXRF ; hist(m) 
-             #all zeros: Ag, Bi, Cd, Sb, Sn 
-             #log: Co, Cu p= .03, Mn, Rb, Zr 
-             #one outlier: Pb, Sn (only 1 value=almost all zeros); Zn 2 outliers
-             #normal variables = Fe, K, Rb, Ti, V
-             #Other: Al, As, Ca, Cr, Hg, LE, Ni, P, S, Sr, Th, W, Y, Mg
-            #Al several outliers ; As 5 outliers, patterns?, Ca 6 outliers, Cr many outliers, Hg few  values registered; LE not normal, curving qqplot; Mg four outliers; Mo very low values <17, same values repeated ; Nb same values repeated; Ni long tail; P set of outliers; S set of outliers; Sr set of oultiers; Th 7 outliers all about under 20; W very few values <25%; Y man of same values <18; 
-
-#log(Cu), boxcox/KW(Pb), boxcox/KW(Ni), Zn, boxcox/KW(As), outliers-Mg, boxcox(Cr), Fe, log(Mn) (NO Cd values)
-
-qqnorm(m); qqline(m)
-lm<-log(m); shapiro.test(lm)
-qqnorm(lm); qqline(lm)
-sm<-sqrt(m); shapiro.test(sm)
-```
-
 ```{r, C linear regression models / ANOVA, eval=FALSE, echo=FALSE}
- #set up liner mixed effects model, with Block as a fixed effect
-#lmer.c<-lmer (log(C) ~ sample_position*layer_bot+ (1|veg_age) 
-#                    + (1|veg_age:sample_position), data=df.vine)
-#  resid.c<- resid(lmer.c) #plot residual
-#  plot(resid.c);abline(0,0) #look normal, evenly distributed
-# anova(lmer.c, ddf="Kenward-Roger") #run analysis of variance, ddf = posthoc correction for mixed model
-
 #test without vineyard age as fixed effect
 lm.c<-lm (log(C) ~ veg_age*sample_position*layer_bot, data=df.vine)
   resid.clm<- resid(lm.c) #plot residual
@@ -482,414 +467,6 @@ cont2.table<-summary(cont2$contrasts); cont2.table
 cont2.table[(cont2.table$p.value<=.05),]
 ```
 
-```{r, N linear regression models / ANOVA, eval=FALSE, echo=FALSE}
- #set up liner mixed effects model, with Block as a fixed effect
-#lmer.n<-lmer (sqrt(N) ~ sample_position*layer_bot+ (1|veg_age) 
-#                    + (1|veg_age:sample_position), data=df.vine)
-#  resid.n<- resid(lmer.n) #plot residual
-#  plot(resid.n);abline(0,0) #look normal, evenly distributed
-#anova(lmer.n, ddf="Kenward-Roger") #run analysis of variance, ddf = posthoc correction for mixed model
 
-#test without vineyard age as a fixed effect
-lm.n<-lm (sqrt(N) ~ veg_age*sample_position*layer_bot, data=df.vine)
-  resid.nlm<- resid(lm.n) #plot residual
-  plot(resid.nlm);abline(0,0) #look normal 
-anova(lm.n) #run analysis of variance, ddf = posthoc correction for mixed model
-
- #model selection
-# Fit the full model 
-full.model.n <- lm(sqrt(N) ~ veg_age*layer_bot*sample_position, data=df.vine)
-# Stepwise regression model
-step.model.n <- stepAIC(full.model.n, direction = "both", trace = FALSE)
-summary(step.model.n)
-
-#pairwise contrasts lmer
-cont3<-lsmeans(lmer.n, pairwise ~ sample_position*layer_bot);
-cont3.table<-summary(cont3$contrasts); cont3.table
-cont3.table[(cont3.table$p.value<=.05),]
-
-#pairwise contrasts lm (vine age as a random treatment effect)
-cont1<-lsmeans(lm.n, pairwise ~ sample_position*layer_bot|veg_age);
-cont1.table<-summary(cont1$contrasts); cont1.table
-cont1.table[(cont1.table$p.value<=.05),]
-
-cont2<-lsmeans(lm.n, pairwise ~ veg_age*layer_bot|sample_position);
-cont2.table<-summary(cont2$contrasts); cont2.table
-cont2.table[(cont2.table$p.value<=.05),]
-```
-
-```{r, C and N graph, eval=FALSE, echo=FALSE}
-
-df.c.plot<-df.vine
-names(df.c.plot)[c(11,22, 24)]<-c("Months",  "Position", "Depth")
-
-#graph mean sample position, depth, months
-mean.c <- aggregate(C ~ Months + Position + Depth, df.plot, function(x) c(mean = mean(x)), na.action=na.omit);str(mean.c)
-se.c<- aggregate(C~ Months + Position + Depth, df.c.plot, function(x) c(se = sd(x)/sqrt(length(x))), na.action=na.omit);se.c;
-tab.c<-cbind(mean.c, se.c$C);names(tab.c)[1:5]<-c("Months",  "Position", "Depth", "C", "SE")
-str(tab.c)
-
-#carbon
-p.c<-ggplot(data=df.plot, aes(x=Months, y=C, fill=Position)) +
-    # geom_hline(yintercept=100, linetype=1, color="darkgray", size=1)+
-    #geom_errorbar(aes(ymin=C-SE, ymax=C+SE), width=.1)+
-  geom_boxplot(size=1, aes(fill = Position),color="black")+ #, shape=21)+
- facet_wrap(Depth~.,  ncol=2) #scale="free"
-p.c
-
-p.c.pos<-ggplot(data=df.plot, aes(x=Months, y=C, fill=Depth)) +
-    # geom_hline(yintercept=100, linetype=1, color="darkgray", size=1)+
-    #geom_errorbar(aes(ymin=C-SE, ymax=C+SE), width=.1)+
-  geom_boxplot(size=1, aes(fill = Depth),color="black")+ #, shape=21)+
- facet_wrap(Position~.,  ncol=2) #scale="free"
-p.c.pos
-
-#nitrogen
-p.n<-ggplot(data=df.plot, aes(x=Months, y=N, fill=Position)) +
-    # geom_hline(yintercept=100, linetype=1, color="darkgray", size=1)+
-    #geom_errorbar(aes(ymin=C-SE, ymax=C+SE), width=.1)+
-  geom_boxplot(size=1, aes(fill = Position),color="black")+ #, shape=21)+
- facet_wrap(Depth~.,  ncol=2) #scale="free"
-p.n
-
-p.n.pos<-ggplot(data=df.plot, aes(x=Months, y=C, fill=Depth)) +
-    # geom_hline(yintercept=100, linetype=1, color="darkgray", size=1)+
-    #geom_errorbar(aes(ymin=C-SE, ymax=C+SE), width=.1)+
-  geom_boxplot(size=1, aes(fill = Depth),color="black")+ #, shape=21)+
- facet_wrap(Position~.,  ncol=2) #scale="free"
-p.n.pos
-
-
-```
-
-```{r, Metals - check for correlations between response variables, eval=FALSE, echo=FALSE}
-#Pearson correlation for normal variables
-df.corr<-cbind(df.vine[26:length(df.vine)]) 
-spear<-rcorr(x=as.matrix(df.corr), y=as.matrix(df.corr), type = "spearman") #type can be pearson/spearman 
-  tab.corr<-as.data.frame(spear$r)[1:30, 1:30] #cut repeated set of variables
-  rownames(tab.corr); colnames(tab.corr)
-  tab.p<-as.data.frame(spear$P)[1:30, 1:30] #cut repeated set of variables
-  corr.table<-rbind(tab.corr, tab.p) 
-  corr.order<- corr.table[order(row.names(corr.table)), ]
-  write.table(corr.order, "nexus_xrf_spearman.csv", sep =",") #rows with .1 are the p-values
-#str(corr.df) 
-  
-#>.75	Zn/Cu ; Ti/Fe
-#>.60			Rb/K, Si/Al,	Ca/Cu, Co/Fe,	Mn/Co, Cu/S, Mn/Fe,LE/S,Th/Mo,Nb/Y
-```
-
-```{r, METALS check RCRA metals/standards, eval=FALSE, echo=FALSE}
-#   Element	D-Limit (ppm)	EPA alllowable limits
-#24	Cr    	<10ppm	      5x
-#33	As	    <5ppm	        5x  6ppm  .1-40
-#34	Se	    <5ppm	        1
-#47	Ag	    <10ppm	      5
-#48	Cd	    <10ppm	      1   .35 .01-2
-#56	Ba	    <20ppm	      100x
-#80	Hg	    <5ppm	        0.2x
-#82	Pb	    <5ppm	        5x
-
-#Percent of smaples over RCRA limit for 'hazardous' waste
-Cr.RCRA<- df.vine$Cr.pXRF > 5; length(Cr.RCRA[Cr.RCRA==TRUE])/length(Cr.RCRA)*100 # = 100% 
-As.RCRA<- df.vine$As.pXRF > 5; length(As.RCRA[As.RCRA==TRUE])/length(As.RCRA)*100 # = 92%
-Se.RCRA<- df.vine$Se.pXRF > 5; length(Se.RCRA[Se.RCRA==TRUE])/length(Se.RCRA)*100 # = 6.5% 
-#df.vine$Ag.pXRF # not detected
-#df.vine$Cd.pXRF #not detected
-Hg.RCRA<- df.vine$Hg.pXRF > .2; length(Hg.RCRA[Hg.RCRA==TRUE])/length(Hg.RCRA)*100 # = 32% 
-Pb.RCRA<- df.vine$Pb.pXRF > 5; length(Pb.RCRA[Pb.RCRA==TRUE])/length(Pb.RCRA)*100 # = 100%
-colnames(df.vine)
- 
-df.vine.error$Pb.E
-df.vine.error$Mg.E
-
-#Cu, Pb, Ni, Zn, Cd
-#As, Mg, Cr, Fe, Mn
-```
-
-```{r, Anova - seperate for each metals of interest, eval=FALSE, echo=FALSE}
-#log(Cu), boxcox/KW(Pb), boxcox/KW(Ni), Zn, boxcox/KW(As), outliers-Mg, boxcox(Cr), Fe, log(Mn) 
-#(NO Cd values)
-
-#ANOVA for each metal
-
-As.model <-(aov(As~layer_bot*sample_position*veg_age, df.m)) 
-summary(As.model)
-
-Cr.model <-(aov(Cr~layer_bot*sample_position*veg_age, df.m)) 
-summary(Cr.model)
-#pairwise comparisions of means
-cont1<-lsmeans(Cr.model, pairwise ~ layer_bot*veg_age*sample_position);
-cont1.table<-summary(cont1$contrasts); cont1
-cont2.table[(cont2.table$p.value<=.05),]
-
-
-Cu.model <-(aov(Cu.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Cu.model)
-
-Fe.model <-(aov(Fe.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Fe.model)
-
-Mg.model <-(aov(Mg.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Mg.model)
-
-Mn.model <-(aov(Mn.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Mn.model)
-
-Ni.model <-(aov(Ni.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Ni.model)
-
-Pb.model <-(aov(Pb.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Pb.model)
-
-Zn.model <-(aov(Zn.pXRF~layer_bot*sample_position*veg_age, df.m)) 
-summary(Zn.model)
-```
-
-```{r, MANOVA of metals, eval=FALSE, echo=FALSE}
-# variable to combine: REMOE: Cd.pXRF, Bi.pXRF,  Ag.pXRF, Sb.pXRF, Sn.pXRF,
-df.m<-dplyr::select(df.vine, veg_age, layer_bot, sample_position, Al.pXRF, As.pXRF, Ca.pXRF, Co.pXRF, Cr.pXRF, Cu.pXRF, Fe.pXRF, Hg.pXRF, K.pXRF, LE.pXRF, Mg.pXRF, Mn.pXRF, Mo.pXRF, Nb.pXRF,Ni.pXRF, P.pXRF, Pb.pXRF, Rb.pXRF, S.pXRF,  Se.pXRF, Si.pXRF,  Sr.pXRF, Th.pXRF, Ti.pXRF, U.pXRF, V.pXRF, W.pXRF, Y.pXRF, Zn.pXRF, Zr.pXRF)
-names(df.m)<-str_replace(names(df.m), ".pXRF", "")
-
-#Cu, Pb, Ni, Zn,  As, Mg, Cr, Fe, Mn (NO Cd values)
-m1<-dplyr::select(df.vine, As.pXRF,   Cr.pXRF, Cu.pXRF, Fe.pXRF,  Mg.pXRF, Mn.pXRF,  Ni.pXRF, Pb.pXRF,  Zn.pXRF)
-names(m1)<-str_replace(names(m1), ".pXRF", "")
-names(df.vine)
-m2<-dplyr::select(df.vine, veg_age, layer_bot, sample_position, Al.pXRF,Ca.pXRF, Co.pXRF, Hg.pXRF, K.pXRF, LE.pXRF, Mo.pXRF, Nb.pXRF, P.pXRF, Rb.pXRF, S.pXRF,  Se.pXRF, Si.pXRF,  Sr.pXRF, Th.pXRF, Ti.pXRF, U.pXRF, V.pXRF, W.pXRF, Y.pXRF,Zr.pXRF, C, N, pH_CaCl2, electrical_conductivity)
-names(m2)<-str_replace(names(m2), ".pXRF", "")
-  #df.vine$Zn.pXRF #Zn average in soil 90ppm - not interesting
-  #df.vine$Mn.pXRF #Mn also under sol average of 1000ppm
-
-df.m$veg_age<-as.factor(df.m$veg_age)
-df.m$layer_bot<-as.factor(df.m$layer_bot)
-
-### Permanova 
-   #not working, with metals of interest as the reponse, and others as the data
-   #Correlated varibles?
-#>.75	Zn/Cu ; Ti/Fe
-#>.60			Rb/K, Si/Al,	Ca/Cu, Co/Fe,	Mn/Co, Cu/S, Mn/Fe,LE/S,Th/Mo,Nb/Y
-
-names(m1)
-names(m2)
-
-```
-
-```{r, graph metals, eval=FALSE, echo=FALSE}
-pd <- position_dodge(.5)
-
-#prep dataframe for the metals graph
-df.vine.long<-subset(df.long, veg=="V_vineyard" & sample_method=="A_auger_10.16cm" & site_name== "2CIEPA") #subset of vineyards only
-df.vine.long$Element<-as.factor(df.vine.long$Element)
-names(df.vine.long)
-str(df.vine.long)
-
-#choose elements of interest
-df.plot<-subset(df.vine.long, Element==c("As.pXRF","Cr.pXRF","Cu.pXRF" ,"Ni.pXRF", "Pb.pXRF", "Mn.pXRF", "Zn.pXRF", "Mg.pXRF", "Fe.pXRF"));str(df.plot)
-#df.plot$layer_bot<-as.factor(df.plot$layer_bot); 
-df.plot$veg_age<-as.factor(df.plot$veg_age);
-str(df.plot)
-df.plot$Element<-str_remove_all(df.plot$Element, ".pXRF") #remove .pXRF from variable names
-
-#create table of means and se for graphing
-mean.metals <- aggregate(PPM ~ Element+veg_age+layer_bot, df.plot, function(x) c(mean = mean(x)), na.action=na.omit); mean.metals$Element<-as.factor(mean.metals$Element)
-str(mean.metals)
-se.metals<- aggregate(PPM ~ Element+veg_age+layer_bot, df.plot, function(x) c(se = sd(x)/sqrt(length(x))), na.action=na.omit);se.metals;
-tab.metals<-cbind(mean.metals, se.metals$PPM);names(tab.metals)[2:5]<-c("Months", "Depth", "PPM", "SE")
-str(tab.metals)
-                                                                                              
-#graph metals PPM
-theme_set(theme_base(base_size = 12))
-
-p.metals.age<-ggplot(data=tab.metals, aes(x=Months, y=PPM, fill=Depth)) +
-    # geom_hline(yintercept=100, linetype=1, color="darkgray", size=1)+
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Depth),color="black", shape=21)+
- facet_wrap(Element~., scale="free", ncol=3)
-
-
-#graph sample position, depth, months
-mean.metals.pos <- aggregate(PPM ~ Element+veg_age+sample_position, df.plot, function(x) c(mean = mean(x)), na.action=na.omit); mean.metals$Element<-as.factor(mean.metals$Element)
-str(mean.metals.pos)
-se.metals.pos<- aggregate(PPM ~ Element+veg_age+sample_position, df.plot, function(x) c(se = sd(x)/sqrt(length(x))), na.action=na.omit);se.metals;
-tab.metals.pos<-cbind(mean.metals.pos, se.metals.pos$PPM);names(tab.metals.pos)[2:5]<-c("Months",  "Position", "PPM", "SE")
-str(tab.metals.pos)
-
-df.As<-subset(tab.metals.pos, Element=="As")
-
-p.As<-ggplot(data=df.As, aes(x=Months, y=PPM, fill=Position)) +
-    geom_hline(yintercept=20, linetype=2, color="red", size=1)+ #contaminated
-    #geom_hline(yintercept=100, linetype=1, color="lightgray", size=1)+ #range
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="As (ppm)")+
-  ylim(0,22)
-
-
-#Cr graph
-df.Cr<-subset(tab.metals.pos, Element=="Cr")
-#facet_wrap(Depth~., scale="free")
-p.Cr<-ggplot(data=df.Cr, aes(x=Months, y=PPM, fill=Position)) +
-    geom_hline(yintercept=100, linetype=2, color="red", size=1)+ #contaminated
-    geom_hline(yintercept=70, linetype=1, color="lightgray", size=1)+ #range
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Cr (ppm)")+
-  ylim(0,210)
-
-#Cu graph
-df.Cu<-subset(tab.metals.pos, Element=="Cu")
-p.Cu<-ggplot(data=df.Cu, aes(x=Months, y=PPM, fill=Position)) +
-    geom_hline(yintercept=100, linetype=2, color="red", size=1)+ #contaminated
-    geom_hline(yintercept=30, linetype=1, color="lightgray", size=1)+ #range
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Cu (ppm)")+
-  ylim(0,110)
-
-#Ni graph
-df.Ni<-subset(tab.metals.pos, Element=="Ni")
-p.Ni<-ggplot(data=df.Ni, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=50, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=50, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Ni (ppm)")+
-  ylim(0,60)
-
-#Pb graph
-df.Pb<-subset(tab.metals.pos, Element=="Pb")
-p.Pb<-ggplot(data=df.Pb, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=35, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=100, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Pb (ppm)")+
-  ylim(0,110)
-
-#Mn graph
-df.Mn<-subset(tab.metals.pos, Element=="Mn")
-p.Mn<-ggplot(data=df.Mn, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=1000, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=2000, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Mn (ppm)")+
-  ylim(0,2010)
-
-#Zn graph
-df.Zn<-subset(tab.metals.pos, Element=="Zn")
-p.Zn<-ggplot(data=df.Zn, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=90, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=300, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Zn (ppm)")+
-  ylim(0,310)
-
-#Mg graph
-df.Mg<-subset(tab.metals.pos, Element=="Mg")
-p.Mg<-ggplot(data=df.Ni, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=5000, linetype=1, color="lightgray", size=1)+ #range
-   # geom_hline(yintercept=50, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Mg (ppm)")+
-  ylim(0,5000)
-
-#Fe graph
-df.Fe<-subset(tab.metals.pos, Element=="Fe")
-p.Fe<-ggplot(data=df.Fe, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=40000, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=50000, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Fe (ppm)")+
-  ylim(0,50100)
-
-#Ca graph
-df.Ca<-subset(tab.metals.pos, Element=="Ca")
-p.Fe<-ggplot(data=df.Fe, aes(x=Months, y=PPM, fill=Position)) +
-      geom_hline(yintercept=40000, linetype=1, color="lightgray", size=1)+ #range
-    geom_hline(yintercept=50000, linetype=2, color="red", size=1)+ #contaminated
-    geom_errorbar(aes(ymin=PPM-SE, ymax=PPM+SE), width=.1)+
-  geom_point(size=3, aes(fill = Position),color="black", shape=21)+
-  labs(y="Fe (ppm)")+
-  ylim(0,50100)
-
-
-```
-  
-```{r, extra code, eval=FALSE, echo=FALSE}  
-
-   
-#Attempted
-### Attempted outlier remove and transformation of Pb and Zn - Zn after 2 high outliers removed and log transformed = normal
-#remove NAs in Pb and Zn
-y.Pb<-as.numeric(na.omit(df.vine$Pb.pXRF))
-
-#Outlier Test
-chisq.out.test(y.Pb, variance=var(y.Pb), opposit =TRUE) #true = min value false=max
-chisq.out.test(y.Pb, variance=var(y.Pb), opposit =FALSE) #higest value remove first as this is more significant, then retest normality
-y.Pb[y.Pb > 29] <- NA
-y.Pb[y.Pb < 13.00001] <- NA
-y.Pb
-#p-value = <.0001 highest value 30 is an outlier
-shapiro.test((y.Pb)^3)
-#check for outliers remove
-str(y.Pb)
-hist(y.Pb)
-
-#remove NAs in Pb and Zn
-y.Zn<-as.numeric(na.omit(df.vine$Zn.pXRF))
-#Outlier Test for Zn
-chisq.out.test(y.Zn, variance=var(y.Zn), opposit =TRUE) #true = min value false=max
-chisq.out.test(y.Zn, variance=var(y.Zn), opposit =FALSE) #higest value remove first as this is more significant, then retest normality
-y.Zn[y.Zn > 150] <- NA
-#p-value = <.0001 highest value 30 is an outlier
-shapiro.test(log(y.Zn))
-#log(Zn) or log(Zn+1) are normal
-
-#### box-cox tranformation of all metals
-
-#create a function for boxcox transformation
-powerTransform <- function(y, lambda1, lambda2 = NULL, method = "boxcox") {
-  boxcoxTrans <- function(x, lam1, lam2 = NULL) {
-    # if we set lambda2 to zero, it becomes the one parameter transformation
-    lam2 <- ifelse(is.null(lam2), 0, lam2)
-    if (lam1 == 0L) {
-      log(y + lam2)
-    } else {
-      (((y + lam2)^lam1) - 1) / lam1 }}
-  switch(method
-         , boxcox = boxcoxTrans(y, lambda1, lambda2)
-         , tukey = y^lambda1) }
-
-#remove columns with all zeros, and Sn with only 1 value
-colnames(df.vine)
-
-
-#metals<-cbind(Al.pXRF, As.pXRF, Ca.pXRF, Co.pXRF, Cr.pXRF, Cu.pXRF, Fe.pXRF, Hg.pXRF, K.pXRF, LE.pXRF, Mg.pXRF, Mn.pXRF, Mo.pXRF, Nb.pXRF, Ni.pXRF, P.pXRF, Pb.pXRF, Rb.pXRF, S.pXRF,  Se.pXRF, Si.pXRF,  Sr.pXRF, Th.pXRF, Ti.pXRF, U.pXRF, V.pXRF, W.pXRF, Y.pXRF, Zn.pXRF, Zr.pXRF)
-
-lm.m<-lm(m ~ veg_age*layer_bot*sample_position, data = df.vine)
-
-bc<-boxcox(lm.m, na.omit=T) #run boxcox trans on linear model
-lambda <- bc$x[which.max(bc$y)]
-
-#re-run with transformation
-   #mod.act3.bc <- lm(powerTransform(m.y, lambda) ~ Enzyme*Matrix*pH, data=df.m,
-                  #na.action = na.omit)
-
-#manova model -DATA NOT NORMAL YET
-  #lm.metals1<-lm(y ~ layer_bot*sample_position*veg_age, data=df.m)
-#manova model with vineyard as a random effect (block)
-  #lmer.metals<-lmer (as.matrix(df.m[4:12]) ~ layer_bot*sample_position + (1|veg_age), data=df.m)
-  #lmer.nest<-lmer (cbind(df.vine$ ~ layer_bot*sample_position + (1|veg_age), data=df.vine)
-  #anova(lm.metals1)
-  #summary(aov(lm.metals1))
-
-#pairwise comparisions of means
-cont1<-lsmeans(Permanova.metals, pairwise ~ layer_bot);
-cont1.table<-summary(cont1$contrasts); cont1
-names(m2) 
-
-```
-
+####References
+Bootstrap/max likelihood: https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2001GC000253

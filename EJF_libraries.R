@@ -5,6 +5,10 @@
 
 ###  Objective: Place all of my commonly uploaded libraries in one source document
 
+#x <- c("ggmap", "rgdal", "rgeos", "maptools", "dplyr", "tidyr", "tmap")
+   # install.packages(x) # warning: uncommenting this may take a number of minutes
+#lapply(x, library, character.only = TRUE) 
+
 #install CRAN packages
 #install.packages(c("doBy",  "stringr", "ggthemes", "plyr", lmerTest", 
 #                  "corrplot", "gplots", "grid", "ape", "devtools", "rgl", "fdrtool", "qiimer", 
@@ -14,16 +18,17 @@
 #                   "bios2mds", ##needed for phyloseq
 #                   "RVAideMemoire","rgdal", "raster", "HH", "jvm", "ggforce", "outliers",
 #                   "metafor", "metaforest", "sp", "mmpf", "rgdal",
-#                    "psych", "Cairo", "dichromat", "CCA",
-#                   "WriteXLS", "Rmisc", "GGally", "tidyverse")) #for CAP pairwise.factorfit #HH for anocva
+#                    "psych", "Cairo", "dichromat", "CCA","boot",
+#                   "WriteXLS", "Rmisc", "GGally", "tidyverse", "dlookr", "broom"))  #for CAP pairwise.factorfit #HH for anocva
 
+#install.packages(c("sf", "raster", "spData", "spDataLarge", "tmap", "leaflet", "mapview", "gstat"))
 #structuring data, aggregating etc.
+library(dlookr); library(broom)
 library(raster); library(sp); library(mmpf); library(rgdal) #for get worldclim data
 library(psych)
 library(metafor); library(metaforest); 
 library(WriteXLS)
 library(plyr)
-library(rgdal); library(raster); library(sp) #world climate data info
 library(multcomp)#for anovas
 
 library(tidyverse) #includes  [1] "broom"      "cli"        "crayon"     "dbplyr"     "dplyr"     
