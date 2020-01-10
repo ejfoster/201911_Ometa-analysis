@@ -4,36 +4,44 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
-
-#### Goal: Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GOAL: 
+Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+STATS OVERVIEW:
 mixed model for meta-analysis (regression?) with maximum likelihood 
-       (hierarchical w study and depth as groups) OR run different analyssis every 20cm
+       (hierarchical w study and depth as groups) 
+       OR I could run different analyssis every 20cm
+       
 parameter = carbon stock 
-moderators = initial conditions, environment, management
-covariate = length of study (months)
-
+moderators = initial soil conditions, other environmental factors, management
+covariate = length of study (months)??
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 WORKING ON:
+Bootstrap Qb values for different parameters - how can this incorporate ACC (strata?)? Autocorrelation w depth?
+    -if depth is just another parameter, no testing of how the other parameters vary with depth...
+
 Need to bias correct bootstrap - <50% of distribution above mean
-I2 test of each moderator?
+I2 test of each moderator instead of Qb value?
 Must I down weight studies with imputed error?
 Can I bootstrap to check distribution of the variances?
-
-RESEARCH QUESTIONS
+Which moderators best explain the variance? Qw and Qb calculations (how do I get a p-value? = CIs?)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+STATS QUESTIONS:
 a. Is the effect different from zero? (are there outliers of effect sizes?)
       -YES, bootrapped mean effect sizes for the global meta-analysis
 b. Examine degree of heterogeneity of effect sizes
         -Account for between study varition (2nd source of heterogeneity)
-        -USE either Qt or I2 (more accurate between meta-analysis comparison)
+        -USE either Qt, or I2 is more accurate between meta-analysis comparison
 c. Estimate standard deviation of studies
        (1) assume normal and S = 1 ; (2) impute from studies with data (SD/mean ratio for complete studies AND (3) regression S = alpha +beta*n)
-       
 d. Calculate weight of each study (based on sample size of control and trt) (p205)
-e. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
-       -metafor mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
-f. Make statistical inference to derive estimates, test hypothese, make deicions based on the model
+
+e. Make statistical inference to derive estimates, test hypothese, make deicions based on the model
        -calculate Q for each moderator? Or calucate I2 (pg 112) 
        -bootstrappping and 95% CI on factors (p 123)
+f. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
+       -metafor mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
 g. Check assumptions
        (1) fit assumptions of statisitcal models
        (2) test publicaiton bias (p219)
@@ -46,9 +54,8 @@ g. Check assumptions
 h. Discuss generaliziability and limitations
         -SE assumed rather than SD when not recorded (more conservative)
 i. Gaps where more primary studies are needed?
-
-
-#### Research Quesitons
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RESEARCH QUESTIONS:
 Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
 How does amendment stabilizaiton of SC change with depth? with time?
 Do effects differ between minimum controls vs fertilzed controls?
@@ -77,17 +84,18 @@ Management
 14. Crop System
 15. Irrigation type
 16. Fertilizer input
-
-
-#### Notes:
-       #echo=false supresses code; include=false supressed output
-COMPLETED
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NOTES:
+echo=false supresses code; include=false supressed output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+COMPLETED:
         1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
         2) convert SE to SD
         3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios
         4) Imputed error in the form of SD with ratios (SD/X'mean') and regrssion SD= alpha +beta (N)
-        5) 
-```{r, 0.0 climate data, eval=FALSE}
+        5) Checked heterogeneity within meta-analysis due to different studies (section 8); calculated I2 statistic
+        6)
+```{r, 0. climate data, eval=FALSE}
 #http://www.worldclim.org/formats1
 
 #tmean , prec ; 12 data layers 1 for each month
@@ -123,7 +131,7 @@ COMPLETED
 
 ```
 
-```{r, 0.1 prelimary - load packages, include=FALSE}
+```{r, 1. prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
 uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis/Ometa2019") #save long name as user directory uzdir
 setwd(paste(uzdir))  #set your working directory/file
@@ -147,29 +155,26 @@ df1<-df1[-c(4076:4079),]
 #number of studies included
 length(unique(df1$ACC))
 length(unique(df1$country))
-df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_zf<-as.numeric(df1$X_zf)
+df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.numeric(df1$X_cmin)
 names(df1)
 
 names(df1)
 #select important columns
 df1 %>% dplyr::select(X3,ACC, 
                       crop_group, crop_system, irrigation, tillage_type , tillage_depth,    
-                      till_depth_group, Nfert_rate,
+                      till_depth_group, Nfert_rate, Nfert_group,  Pfert_rate, NPK_rate,
                       depth.start ,  depth.end ,  param ,  param_group ,  units , 
                       time.n.mos,  duration_group,  duration_even , 
                        lat.dec.degree, country , elevation ,  lat_group , MAT ,  MAP ,
                       pH, clay, clay_group ,  pH_group ,  SOC_g.kg, SOC_int_group, BD,
-                      amend, amend_group, weight.dry,  C.rate_Mg.ha, C.N_rate, N.amend_g.kg,  
-                      X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cim, SD_cim, N_cim ) -> df2 
+                      amend, amend_group, weight.dry,  C.rate_Mg.ha, C.N_rate, C.rate_group, amend_N_kg.ha,amend_N_kg.ha_group,
+                      X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin ) -> df2 
   
 #rename cmin to zf (zero fertilized control)
 df<-dplyr::rename(df2, X_zf=X_cmin, SE_zf=SE_cmin, SD_zf=SD_cmin , N_zf=N_cmin)
 
-df2 %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_zf, SE_zf, SD_zf, N_zf)-> df.result 
+df %>% dplyr::select(X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_zf, SE_zf, SD_zf, N_zf)-> df.result 
 
-
- 
-names(df)
 #many data types are extracted, select soil carbon as the initial response parameter
  #subgroups will be used to addresss questions about stability
 param<-unique(df$param)
@@ -185,7 +190,7 @@ df[which(df$param=="SOC"), ]$ACC %>% unique() %>% length() #SOC = 46
 ```
 
 ```{r, 3. initial plots, echo=FALSE}
-plot(df$amend_group_brd, df$C.N_rate) 
+#plot(df$amend_group_brd, df$C.N_rate) 
 
 plot(df$country); axis(2,cex.axis=1)  
 plot(df$depth.end)
@@ -196,8 +201,8 @@ plot(df$crop_system)
 hist(df$lat.dec.degree, main= "Latitude")
      hist(df$elevation, main= "Elevation", xlab="Elevation (m)")
      plot(df$MAP, df$MAT)
-     hist(df$year.zero, main="First Year of Study", xlab="Year")
-     hist(df$exp_duration_mos, main="Study Length", xlab="Months of Experiment")
+     #hist(df$year.zero, main="First Year of Study", xlab="Year")
+     #hist(df$exp_duration_mos, main="Study Length", xlab="Months of Experiment")
       plot(df$duration_even, main="First Year of Study", xlab="Year")
      hist(df$MAP, main="Precipitation", xlab="MAP (mm)")
       hist(df$MAT, main="Temperature", xlab="MAT (degrees C)")
@@ -305,7 +310,7 @@ shapiro.test(m) #not normal
 #  group_by(ACC) %>%
 #summarise_all(funs(mean, n), na.rm = TRUE); mean.ratio
 ```
-
+ 
 ```{r, 6. impute error}
 #impute error over all depths/amendents for df.c
 
@@ -337,6 +342,10 @@ df.c$SD_a_reg<-ifelse(is.na(df.c$SD_a), 25.731-5.496*(df.c$N_a), df.c$SD_a)
 
 ```{r, 7. bootstrap for 95% CI, mean over all depths}
 #can also play with boot.mle() for a fitted model
+library(FAmle)
+#mle() needs to be a 
+boot.mle(all.rma.ar.null)
+
 
 #create one depth variable, mean of depth start and stop
 df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
@@ -401,6 +410,8 @@ boot.ci(results.zf.var) #,type="bca")
 #see pg 109-113 Koricheva 2013 handbook of meta-anaysis for ecology
 #check QT using K against chi-sq distrubtion: https://www.socscistatistics.com/pvalues/chidistribution.aspx
   #note random effects models should take this QT between study heterogeniety into account, so QT is not a useful statistic for the global meta-analysis with random effects
+#check signficant against the X2 distribution:
+# http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
 
 #mu.hat = sum(w.k*theta.k)/sum(w.k)
 #QT = sum (w.k* (theta.k-mu.hat)^2)
@@ -411,41 +422,39 @@ w.cf<-mydf.cf$w.cf
 theta.cf<-mydf.cf$ratio_cf
 mu.cf <- sum(w.cf*theta.cf)/sum(w.cf) #0.1495921; % change 16.13
 QT.cf <- sum (w.cf* (theta.cf-mu.cf)^2) #not meaningful for random effects models, compare to X2 distrubtion, 50.09 (X2 p-value = .18 , not sig )
+
 K.cf <- length(unique(mydf.cf$ACC)) #42
 I2.cf = max ((100*( (QT.cf-(K.cf-1))/QT.cf)),0)
 #18% of observed variance can be attribted to difference among the studies
 
+ #chisq.test(x = observed(theta.cf), p = expected)
+ 1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
+
 #B. zero input controls
 w.zf<-mydf.zf$w.zf 
-theta.zf<-mydf.zf$ratio_zf
+theta.zf<-mydf.zf$ratio_zf; hist(theta.zf); shapiro.test(theta.zf)
 mu.zf <- sum(w.zf*theta.zf)/sum(w.zf) #0.2792475; %change 32.21
-QT.zf <- sum (w.zf* (theta.zf-mu.zf)^2) #X2 p-value = 0.2236, not sig
+QT.zf <- sum (w.zf* (theta.zf-mu.zf)^2) #looked up X2 p-value = 0.2236, not sig
 K.zf <- length(unique(mydf.zf$ACC)) #39
 I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
 #16% of observed variance can be attribted to difference among the studies
+
+#get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
+ 1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
+
+#C. combined
+w.comb<-c(mean(w.cf), mean(w.zf))
+theta.comb<-c(mean(theta.cf), mean(theta.zf))
+mu.comb<-c(mean(mu.cf), mean(mu.zf))
+QT.comb<-c(mean(QT.cf, QT.zf))
+ #chisq.test
+ 1-pchisq(q=QT.comb, df=1)
+
+
 ```
 
-```{r, 9. check for correlation among parameters}
-colnames(df)
-hist(df.c$depth.end) 
-
-hist(df.c$depth)  
-
-#pH and MAT?
-param.corr<-select(df, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg)
-pear<-rcorr(as.matrix(param.corr), type = "pearson") 
-
-#Check Q and I statistics for parameters
- 
-```
-
-```{r, 10. mixed-effect meta-analysis (regression) }
-### Auto correlation rma: https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv
-### lmer models with random effects (and intercepts): https://stats.stackexchange.com/questions/31569/questions-about-how-random-effects-are-specified-in-lmer
-### AIC and BIC explainations:
-#https://stats.stackexchange.com/questions/81427/aic-guidelines-in-model-selection
+```{r, 9. calc Qb for all paramters}
 #dataframes with non NAs for fert and zero controls = mydf.fert; mydf.zf and combined
-
 mydf.cf$ratio_comb<-mydf.cf$ratio_cf
 mydf.zf$ratio_comb<-mydf.zf$ratio_zf
 mydf.cf$SD_all<-mydf.cf$SD_cf_imp
@@ -455,15 +464,131 @@ mydf.zf$w_all<-mydf.zf$w.zf
 
 #to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
 #left outer join
- df.c$ratio_all<-ifelse(df.c$ratio_cf=="NA", df.c$ratio_zf, df.c$ratio_zf)
-  df.c$SD_all<-ifelse(df.c$ratio_cf=="NA", df.c$SD_cf_imp, df.c$SD_zf_imp )
+ df.c$ratio_all<-ifelse(is.na(df.c$ratio_cf),  df.c$ratio_zf, df.c$ratio_cf)
+  df.c$SD_all<-ifelse(is.na(df.c$ratio_cf), df.c$SD_zf_imp, df.c$SD_cf_imp) #imputed std deviations
+  df.c$w_all<-ifelse(is.na(df.c$ratio_cf),df.c$w.zf, df.c$w.cf)
+  
+  df.c$control.type<-ifelse(is.na(df.c$ratio_cf), "zf", "cf")
+#see pg 109-113 Koricheva 2013 handbook of meta-anaysis for ecology
+#check QT using K against chi-sq distrubtion: https://www.socscistatistics.com/pvalues/chidistribution.aspx
+  #note random effects models should take this QT between study heterogeniety into account, so QT is not a useful statistic for the global meta-analysis with random effects
+#check signficant against the X2 distribution:
+# http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
 
-### all studies (with fertilized and zero controls)
+#mu.hat = sum(w.k*theta.k)/sum(w.k) ; 
+#QT = sum (w.k* (theta.k-mu.hat)^2)
+
+#mux.x = boot(data=df.c$ratio_cf, statistic=boot_mean, R=1000, weights=df.c$w_all); plot(results.cf); summary(results.cf) #mean RR = .14995; boot.ci(results.cf)
+  
+    #ratio <- function(d, w) sum(d$x * w)/sum(d$u * w)
+       #boot(city, ratio, R = 999, stype = "w")
+  
+#Qw= Sum [ (effect - group bootstrapped mean)^2) / SD^2 ]
+   #Qw = Sum (theta.x - mu.x)^2) / SD^2 ]
+#df = # comparisons -1
+
+#QB= Sum [ group bootstrapped mean - grand bootstrapped mean)^2) / SD^2 ]
+#df = # comparisons -1
+
+#A. fertilized controls
+w.cf<-mydf.cf$w.cf 
+theta.cf<-mydf.cf$ratio_cf
+mu.cf <- sum(w.cf*theta.cf)/sum(w.cf) #0.1495921; % change 16.13
+QT.cf <- sum (w.cf* (theta.cf-mu.cf)^2) #not meaningful for random effects models, compare to X2 distrubtion, 50.09 (X2 p-value = .18 , not sig )
+
+K.cf <- length(unique(mydf.cf$ACC)) #42
+I2.cf = max ((100*( (QT.cf-(K.cf-1))/QT.cf)),0)
+#18% of observed variance can be attribted to difference among the studies
+
+ #chisq.test(x = observed(theta.cf), p = expected)
+ 1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
+
+#B. zero input controls
+w.zf<-mydf.zf$w.zf 
+theta.zf<-mydf.zf$ratio_zf; hist(theta.zf); shapiro.test(theta.zf)
+mu.zf <- sum(w.zf*theta.zf)/sum(w.zf) #0.2792475; %change 32.21
+QT.zf <- sum (w.zf* (theta.zf-mu.zf)^2) #looked up X2 p-value = 0.2236, not sig
+K.zf <- length(unique(mydf.zf$ACC)) #39
+I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
+#16% of observed variance can be attribted to difference among the studies
+
+#get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
+ 1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
+
+#C. combined
+w.comb<-c(mean(w.cf), mean(w.zf))
+theta.comb<-c(mean(theta.cf), mean(theta.zf))
+mu.comb<-c(mean(mu.cf), mean(mu.zf))
+QT.comb<-c(mean(QT.cf, QT.zf))
+ #chisq.test
+ 1-pchisq(q=QT.comb, df=1)
+
+
+```
+
+
+```{r, 10. check for correlation among parameters}
+colnames(df) 
+hist(df.c$depth.end) 
+ 
+hist(df.c$depth)  
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, time.n.mos, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
+#pH and MAT?
+param.corr<-select(df, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg,
+                  C.rate_Mg.ha, C.N_rate, N.amend_g.kg, time.n.mos, Nfert_rate)
+param.corr$MAT.MAP<-df$MAT/df$MAP
+
+pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
+#CORRELATED: pH and MAT = .98 and MAT/MAP; elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333
+
+```
+
+```{r, 11. mixed-effect meta-analysis (regression) }
+### Auto correlation rma: https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv
+### lmer models with random effects (and intercepts): https://stats.stackexchange.com/questions/31569/questions-about-how-random-effects-are-specified-in-lmer
+### AIC and BIC explainations:
+#https://stats.stackexchange.com/questions/81427/aic-guidelines-in-model-selection
+
+### all studies (with fertilized and zero controls), no study weights used
 all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, struct="AR") #W=w_all, 
-summary(all.rma.ar.nowt) 
+summary(all.rma.ar.nowt) # intercept (ACC) is highly significant
+
+### NULL model, all studies, study weights used
+all.rma.ar.null <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
+summary(all.rma.ar.null) # intercept (ACC?) is highly significant; AIC = 826
+
+#check if type of control effects the model, studies weighted by N
+all.rma.ar.ctrl <- rma.mv(data=df.c, ratio_all ~ control.type, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
+summary(all.rma.ar.ctrl) # control type not significant, only intercept
+
+#all studies - test all categorical parameters
+all.rma.ar.cat <- rma.mv(data=df.c, ratio_all ~ crop_group+irrigation+crop_system+lat_group + clay_group+ pH_group+ SOC_int_group+duration_even+C.rate_group+amend_N_kg.ha_group+amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 60
+summary(all.rma.ar.cat) # 
 
 
-### A. studies with fertilized control studies
+#amendment group
+all.rma.ar.am <- rma.mv(data=df.c, ratio_all ~ amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 284
+summary(all.rma.ar.am) #  
+
+#all studies - test all continous parameters #doesn't work
+ 
+
+#INTERESTING:
+### effect of furrow irrigaiton
+names(df)
+#categorical: amend_group, amend, crop_group, irrigation, crop_system
+   #made categoricals: lat_group, clay_group, pH_group, SOC_int_group, Nfert_group, C.rate_group
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, time.n.mos, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
+
+#####################################################################
+### A.  studies with fertilized control studies
+#####################################################################
 #null model, intercept only 
 cf.rma.ar0 <- rma.mv(data=mydf.cf, ratio_cf ~ 1, random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") ; summary(cf.rma.ar0) #AIC = 516.33 (lower AIC = better fit)
      #nested hierarchical model accounts for similarities between depths within the same ACC - only allows 2 levels
@@ -472,6 +597,14 @@ cf.rma.ar.nowt <- rma.mv(data=mydf.cf, ratio_cf ~ 1, random= ~depth|ACC,   V=SD_
 
 cf.rma.ar.test <- rma.mv(data=mydf.cf, ratio_cf ~ MAP+clay+amend_group, random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") ; summary(cf.rma.ar.test) #AIC 160.10
 str(mydf.zf)
+
+names(df)
+
+#categorical: amend_group, amend, crop_group, irrigation, crop_system, 
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, time.n.mos, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
 #####################################################################
 ### B. studies with zero fertilizer input controls
 #####################################################################
