@@ -1016,6 +1016,36 @@ colnames(Tab.EE)<-c("Enzyme", "Abbreviation", "Optimal pH", "Isoelectric Point (
 Table.EE<-kable(Tab.EE, row.names=FALSE) #%>%
 #add_footnote(c("(Watanabe et al, 1992)", "(Durmus et al, 1999)"), notation ="alphabet") 
 
+########################################
+# installing Java JDK rJava
+########################################
+#OSX: On newer versions of OSX you need to install the Java Development Kit.  The normal Java
+#runtime environment IS NOT enough.  To get this go to java.com, click "Free java download",
+#then IGNORE the big red button, and select "See all java downloads", on the next screen select
+#"Looking for the JDK?" from the left hand menu and select the link to "JDK downloads" in the
+#first paragraph.  You can then click the "Download" button underneath JDK in the page you are
+#taken to.  Sorry this is such a pain!
+  
+  
+#If you're not sure whether you have java installed then you can test this from a command
+#prompt.  To get a command prompt try:
+
+#Windows: Select Start > Run, and type 'cmd' (no quotes) in the box which appears, press OK
+
+#MaxOSX: Run Applications > Utilities > Terminal
+
+#Linux: From your applications menu look for an application called 'Terminal' or 'Konsole'.
+#Either of these will give you a usable shell.
+
+#At the command prompt type 'java -version' and press enter.  You should see something like:
+
+#java version "1.8.0_60"
+#Java(TM) SE Runtime Environment (build 1.8.0_60-b27)
+#Java HotSpot(TM) 64-Bit Server VM (build 25.60-b23, mixed mode)
+
+#If you get an error then you don't have java installed.  If the version listed on the first
+#line is less than 1.6 then you might have problems running FastQC.
+
 ##############################
 # Useful websites and links
 ##############################

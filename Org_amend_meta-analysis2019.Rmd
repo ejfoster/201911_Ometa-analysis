@@ -17,119 +17,6 @@ parameter = carbon stock
 moderators = initial soil conditions, other environmental factors, management
 covariate = length of study (months)??
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-WORKING ON:
-Bootstrap Qb values for different parameters - how can this incorporate ACC (strata?)? Autocorrelation w depth?
-    -if depth is just another parameter, no testing of how the other parameters vary with depth...
-
-Need to bias correct bootstrap - <50% of distribution above mean
-I2 test of each moderator instead of Qb value?
-Must I down weight studies with imputed error?
-Can I bootstrap to check distribution of the variances?
-Which moderators best explain the variance? Qw and Qb calculations (how do I get a p-value? = CIs?)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-STATS QUESTIONS:
-a. Is the effect different from zero? (are there outliers of effect sizes?)
-      -YES, bootrapped mean effect sizes for the global meta-analysis
-b. Examine degree of heterogeneity of effect sizes
-        -Account for between study varition (2nd source of heterogeneity)
-        -USE either Qt, or I2 is more accurate between meta-analysis comparison
-c. Estimate standard deviation of studies
-       (1) assume normal and S = 1 ; (2) impute from studies with data (SD/mean ratio for complete studies AND (3) regression S = alpha +beta*n)
-d. Calculate weight of each study (based on sample size of control and trt) (p205)
-
-e. Make statistical inference to derive estimates, test hypothese, make deicions based on the model
-       -calculate Q for each moderator? Or calucate I2 (pg 112) 
-       -bootstrappping and 95% CI on factors (p 123)
-f. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
-       -metafor mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
-g. Check assumptions
-       (1) fit assumptions of statisitcal models
-       (2) test publicaiton bias (p219)
-       (3) check stat power of tests
-       (4) test sensitivity of results to inclusion/exlustion of data - does it change main conclusions
-              -imputed SD, estimated 1, only complete studies
-              -w and w/out the outliers
-              -leave one out (studies or categories)
-       (5) check manuscripts (Ch 20)
-h. Discuss generaliziability and limitations
-        -SE assumed rather than SD when not recorded (more conservative)
-i. Gaps where more primary studies are needed?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-RESEARCH QUESTIONS:
-Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
-How does amendment stabilizaiton of SC change with depth? with time?
-Do effects differ between minimum controls vs fertilzed controls?
-
-0 *** Assess correlation of moderators*** -> find a group where moderators are not confounded and run analysis -results are different than the global effects?
-Do the following moderators help predict change in soil carbon stocks:
-1. Amendment type
-2. Amendment rate
-3. Amendment C:N ratio
-4. C pool  
-5. Time since amendment start
-
-Environmental factors
-6. MAP
-7. MAT
-8. MAP/MAT
-9.  XXXXX place holder...
-10. **Lattitude**
-
-Initial soil proerpties
-11. Texture
-12. Initial SOC
-13. pH
-
-Management
-14. Crop System
-15. Irrigation type
-16. Fertilizer input
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-NOTES:
-echo=false supresses code; include=false supressed output
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-COMPLETED:
-        1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
-        2) convert SE to SD
-        3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios
-        4) Imputed error in the form of SD with ratios (SD/X'mean') and regrssion SD= alpha +beta (N)
-        5) Checked heterogeneity within meta-analysis due to different studies (section 8); calculated I2 statistic
-        6)
-```{r, 0. climate data, eval=FALSE}
-#http://www.worldclim.org/formats1
-
-#tmean , prec ; 12 data layers 1 for each month
-#BIO1 = Annual Mean Temperature; BIO2 = Mean Diurnal Range (Mean of monthly (max temp – min temp)); BIO3 = Isothermality (BIO2/BIO7) (* 100)
-#BIO4 = Temperature Seasonality (standard deviation *100); BIO5 = Max Temperature of Warmest Month, BIO6 = Min Temperature of Coldest Month
-#BIO7 = Temperature Annual Range (BIO5-BIO6), BIO8 = Mean Temperature of Wettest Quarter, BIO9 = Mean Temperature of Driest Quarter
-#BIO10 = Mean Temperature of Warmest Quarter, BIO11 = Mean Temperature of Coldest Quarter, BIO12 = Annual Precipitation
-#BIO13 = Precipitation of Wettest Month, BIO14 = Precipitation of Driest Month, BIO15 = Precipitation Seasonality (Coefficient of Variation)
-#BIO16 = Precipitation of Wettest Quarter, BIO17 = Precipitation of Driest Quarter, BIO18 = Precipitation of Warmest Quarter, BIO19 = Precipitation of Coldest Quarter
-
-#download resolution of climate data desired: http://worldclim.org/version2 #version 2 = 1970-2000
-  #or version 1.4, under generic grid format, downlaod bioclim 2.5 from https://www.worldclim.org/current
-
-#r <- raster::getData("worldclim",var="bio",res=2.5)
-
-
-# also possible to get future climate data: 
-# https://rdrr.io/cran/raster/man/getData.html
-
-#r <- r[[c(1,12)]] #Bio1 and Bio12 selected
-#names(r) <- c("Temp","Prec")
-
-#lats <- c(df$lat.dec.degree) #use spTransform if not in WGS 84 lat/lon (EPSG 4326)
-#longs <- c(df$long.dec.degree) 
-# coords <- data.frame(x=longs,y=lats)
-
-# points <- SpatialPoints(coords, proj4string = r@crs)
-# values <- raster::extract(r,points)
-
-#df.clim <- cbind.data.frame(coordinates(points),values); head(df.clim,2)
-#df.clim$Temp<-df.clim$Temp/10 #WorldCLim data hs a scale factor of 10 for temp
-#WriteXLS(df.clim, "ometa_climate.xls") #specific file here
-
-```
 
 ```{r, 1. prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
@@ -218,7 +105,7 @@ plot(df$duration_group, main="Study Duration", xlab= "Years")
 ```
 
 ```{r, 4. response ratios, weights of ratios, %chanage, eval=FALSE}
-#current dataframess = df and df.result
+#current dataframess = df and df.result 
 #calculate SD from SE= SD/ sqrt(n)  => SE*sqrt(n)
 
 #if the value is Na, replace with SD calculated from SE
@@ -287,18 +174,44 @@ df.c$SD_cf_stock<-ifelse(df.c$units == "g.kg",
                        df.c$SD_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
 
 mean(df.c$ratio_cf, na.rm=TRUE); 
-mean(df.c$ratio_zf, na.rm=TRUE)
+mean(df.c$ratio_zf, na.rm=TRUE) #higher ratio with zero-fertilizer on controls
 
-colnames(df.c)
+### create column of response ratios with fertlized controls as main effets, and only use zero controls when other option not possible
+#dataframes with non NAs for fert and zero controls = mydf.fert; mydf.zf and combined
+mydf.cf$ratio_comb<-mydf.cf$ratio_cf
+mydf.zf$ratio_comb<-mydf.zf$ratio_zf
+mydf.cf$SD_all<-mydf.cf$SD_cf_imp
+mydf.zf$SD_all<-mydf.zf$SD_zf_imp
+mydf.cf$w_all<-mydf.cf$w.cf
+mydf.zf$w_all<-mydf.zf$w.zf
+
+#to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
+#left outer join
+ df.c$ratio_all<-ifelse(is.na(df.c$ratio_cf),  df.c$ratio_zf, df.c$ratio_cf)
+  df.c$SD_all<-ifelse(is.na(df.c$ratio_cf), mydf.zf$SD_all, mydf.cf$SD_all) #imputed std deviations
+  df.c$w_all<-ifelse(is.na(df.c$ratio_cf), mydf.zf$w_all, mydf.cf$w_all)
+  
+  df.c$control.type<-ifelse(is.na(df.c$ratio_cf), "zf", "cf")
+
 #check normality of ratio distribution 
-df.temp<-df.c
-f<-df.temp$ratio_cf
-m<-df.temp$ratio_zf
-hist(f); hist(m)   
+
+f<-df.c$ratio_cf
+z<-df.c$ratio_zf
+all<-(df.c$ratio_all)
+
+hist(f); hist(z); hist(all)
 qqnorm(f);qqline(f) #1 outlier
-qqnorm(m);qqline(m) 
+qqnorm(z);qqline(z)
+qqnorm(all); qqline(all)
+#df.c$ratio_all[df.c$ratio_all >1.9] <-"NA"
+
 shapiro.test(f) #not normal
-shapiro.test(m) #not normal
+shapiro.test(z) #not normal
+shapiro.test(all)
+
+#make response variable numeric
+str(df.c)
+df.c$ratio_all<-as.numeric(df.c$ratio_all)
 
 #where are the outliers? for ratio.zf and ratio.cf
 #mean.ratio<- df2 %>%
@@ -341,12 +254,6 @@ df.c$SD_a_reg<-ifelse(is.na(df.c$SD_a), 25.731-5.496*(df.c$N_a), df.c$SD_a)
 ```
 
 ```{r, 7. bootstrap for 95% CI, mean over all depths}
-#can also play with boot.mle() for a fitted model
-library(FAmle)
-#mle() needs to be a 
-boot.mle(all.rma.ar.null)
-
-
 #create one depth variable, mean of depth start and stop
 df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
 #df.sub<-subset(df.c, depth <= 20); length(df.sub) #subset by depth
@@ -383,7 +290,6 @@ plot(results.cf.var)#over 50% away from mean line = bias correct
 summary(results.cf.var) #variance RR = .14995
 boot.ci(results.cf.var)
 
-
 #############
 # B. data frame control zero/minimum inputs
 ##############
@@ -400,7 +306,8 @@ plot(results.zf)
 boot.ci(results.zf) #,type="bca")
 
 results.zf.var <- boot(data=mydf.zf$ratio_zf, statistic=boot_var, R=1000, weights=mydf.zf$w.zf)
-                #formula=ratio_cf~depth) #strata=ACC?depth?
+                
+#formula=ratio_cf~depth) #strata=ACC?depth?
 plot(results.zf.var)
 boot.ci(results.zf.var) #,type="bca")
 
@@ -409,7 +316,10 @@ boot.ci(results.zf.var) #,type="bca")
 ```{r, 8. check heterogeneity of studies in meta-analysis}
 #see pg 109-113 Koricheva 2013 handbook of meta-anaysis for ecology
 #check QT using K against chi-sq distrubtion: https://www.socscistatistics.com/pvalues/chidistribution.aspx
-  #note random effects models should take this QT between study heterogeniety into account, so QT is not a useful statistic for the global meta-analysis with random effects
+  #note random effects models should take this QT between study heterogeniety into account, 
+
+### so QT is not a useful statistic for the global meta-analysis with random effects###
+
 #check signficant against the X2 distribution:
 # http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
 
@@ -426,6 +336,7 @@ QT.cf <- sum (w.cf* (theta.cf-mu.cf)^2) #not meaningful for random effects model
 K.cf <- length(unique(mydf.cf$ACC)) #42
 I2.cf = max ((100*( (QT.cf-(K.cf-1))/QT.cf)),0)
 #18% of observed variance can be attribted to difference among the studies
+     #rerea 3.18.20 and found 5% explained
 
  #chisq.test(x = observed(theta.cf), p = expected)
  1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
@@ -441,42 +352,35 @@ I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
 
 #get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
  1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
-
+ 1-pchisq(q=I2.zf, df=(K.zf-1)) #ACC not significant - not sure if this test makes statistical sense, just curious
+ 
 #C. combined
 w.comb<-c(mean(w.cf), mean(w.zf))
 theta.comb<-c(mean(theta.cf), mean(theta.zf))
 mu.comb<-c(mean(mu.cf), mean(mu.zf))
-QT.comb<-c(mean(QT.cf, QT.zf))
+QT.comb<-sum(QT.cf, QT.zf)
+K.comb <- sum(K.zf, K.cf) #81
+I2.comb = max ((100*( (QT.comb-(K.comb-1))/QT.comb)),0) #9.7% of variance explained by ACC
  #chisq.test
- 1-pchisq(q=QT.comb, df=1)
-
+ 1-pchisq(q=QT.comb, df=1) #significant
+1-pchisq(q=I2.comb, df=(K.comb-1)) #not significant
 
 ```
 
 ```{r, 9. calc Qb for all paramters}
-#dataframes with non NAs for fert and zero controls = mydf.fert; mydf.zf and combined
-mydf.cf$ratio_comb<-mydf.cf$ratio_cf
-mydf.zf$ratio_comb<-mydf.zf$ratio_zf
-mydf.cf$SD_all<-mydf.cf$SD_cf_imp
-mydf.zf$SD_all<-mydf.zf$SD_zf_imp
-mydf.cf$w_all<-mydf.cf$w.cf
-mydf.zf$w_all<-mydf.zf$w.zf
+#can also play with boot.mle() for a fitted model
+library(FAmle)
+#mle() needs to be a 
+#boot.mle(all.rma.ar.null)
 
-#to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
-#left outer join
- df.c$ratio_all<-ifelse(is.na(df.c$ratio_cf),  df.c$ratio_zf, df.c$ratio_cf)
-  df.c$SD_all<-ifelse(is.na(df.c$ratio_cf), df.c$SD_zf_imp, df.c$SD_cf_imp) #imputed std deviations
-  df.c$w_all<-ifelse(is.na(df.c$ratio_cf),df.c$w.zf, df.c$w.cf)
-  
-  df.c$control.type<-ifelse(is.na(df.c$ratio_cf), "zf", "cf")
-#see pg 109-113 Koricheva 2013 handbook of meta-anaysis for ecology
-#check QT using K against chi-sq distrubtion: https://www.socscistatistics.com/pvalues/chidistribution.aspx
-  #note random effects models should take this QT between study heterogeniety into account, so QT is not a useful statistic for the global meta-analysis with random effects
 #check signficant against the X2 distribution:
 # http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
 
+#measurements need to be independent
+
 #mu.hat = sum(w.k*theta.k)/sum(w.k) ; 
 #QT = sum (w.k* (theta.k-mu.hat)^2)
+#df = # classes * # comparisons -1
 
 #mux.x = boot(data=df.c$ratio_cf, statistic=boot_mean, R=1000, weights=df.c$w_all); plot(results.cf); summary(results.cf) #mean RR = .14995; boot.ci(results.cf)
   
@@ -488,7 +392,7 @@ mydf.zf$w_all<-mydf.zf$w.zf
 #df = # comparisons -1
 
 #QB= Sum [ group bootstrapped mean - grand bootstrapped mean)^2) / SD^2 ]
-#df = # comparisons -1
+#df = # classes -1
 
 #A. fertilized controls
 w.cf<-mydf.cf$w.cf 
@@ -496,36 +400,34 @@ theta.cf<-mydf.cf$ratio_cf
 mu.cf <- sum(w.cf*theta.cf)/sum(w.cf) #0.1495921; % change 16.13
 QT.cf <- sum (w.cf* (theta.cf-mu.cf)^2) #not meaningful for random effects models, compare to X2 distrubtion, 50.09 (X2 p-value = .18 , not sig )
 
-K.cf <- length(unique(mydf.cf$ACC)) #42
-I2.cf = max ((100*( (QT.cf-(K.cf-1))/QT.cf)),0)
-#18% of observed variance can be attribted to difference among the studies
 
- #chisq.test(x = observed(theta.cf), p = expected)
  1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
+#create function to resample with
+boot_mean <- function(df_vector, resample_indices) {
+    mean(df_vector[resample_indices])
+}
+boot_var <- function(df_vector, resample_indices) {
+    (sd(df_vector[resample_indices])^2 )
+}
+set.seed(12345)
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
 
-#B. zero input controls
-w.zf<-mydf.zf$w.zf 
-theta.zf<-mydf.zf$ratio_zf; hist(theta.zf); shapiro.test(theta.zf)
-mu.zf <- sum(w.zf*theta.zf)/sum(w.zf) #0.2792475; %change 32.21
-QT.zf <- sum (w.zf* (theta.zf-mu.zf)^2) #looked up X2 p-value = 0.2236, not sig
-K.zf <- length(unique(mydf.zf$ACC)) #39
-I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
-#16% of observed variance can be attribted to difference among the studies
+#############
+# example Bootstrap Run data frame with fertilized controls 
+##############
+#remove rows with NA for response ratio - as these obvs cannot be analyzed
+mydf.cf<-df.c[which(!is.na(df.c$ratio_cf)),]  
+mean(mydf.cf$ratio_cf) #mean response ratio
+#mean(mydf.cf$ratio_cf)-1 #percent change RR=1 no effect (Kallenbach)
+mean(mydf.cf$percent.change.cf) #percent change (Pressler 2018)
 
-#get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
- 1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
-
-#C. combined
-w.comb<-c(mean(w.cf), mean(w.zf))
-theta.comb<-c(mean(theta.cf), mean(theta.zf))
-mu.comb<-c(mean(mu.cf), mean(mu.zf))
-QT.comb<-c(mean(QT.cf, QT.zf))
- #chisq.test
- 1-pchisq(q=QT.comb, df=1)
-
-
+results.cf <- boot(data=mydf.cf$ratio_cf, statistic=boot_mean, R=1000, weights=mydf.cf$w.cf) # dist looks more evenly distriuted around mean without the weights
+                #formula=ratio_cf~depth) #strata=ACC?depth?
+plot(results.cf)
+summary(results.cf) #mean RR = .14995
+boot.ci(results.cf) #,type="bca") #significant if do not inclue 1
+ #Percentile 95%   ( 0.1270,  0.1736 )
 ```
-
 
 ```{r, 10. check for correlation among parameters}
 colnames(df) 
@@ -544,6 +446,7 @@ param.corr$MAT.MAP<-df$MAT/df$MAP
 pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
 #CORRELATED: pH and MAT = .98 and MAT/MAP; elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333
 
+#remove eleveation and MAT
 ```
 
 ```{r, 11. mixed-effect meta-analysis (regression) }
@@ -552,25 +455,106 @@ pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
 ### AIC and BIC explainations:
 #https://stats.stackexchange.com/questions/81427/aic-guidelines-in-model-selection
 
+#############################################################################
+#better instrutions: getting R to use the correct Java version: https://github.com/Utah-Data-Science/Home_repo/wiki/Getting-R-to-use-the-correct-Java-version
+
+#1. IN TERMINAL
+ #My Jav versions -> /usr/libexec/java_home -V
+#current Java version installed -> java -version
+# print JAVA_HOME -> /usr/libexec/java_home 
+#update paths to version I have ->
+     # export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre"
+    # export LD_LIBRARY_PATH=/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server 
+    # export PATH=$PATH:$JAVA_HOME/bin
+
+#2. choose java option in R
+system("java -version") #check java version running in R
+
+Sys.getenv("JAVA_HOME") #if this returns an empty stirng, but set "JAVA_HOME"
+Sys.setenv('JAVA_HOME'="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/")
+
+options(java.home="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk")
+Sys.setenv(DYLD_FALLBACK_LIBRARY_PATH="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server/")
+   #library(devtools)
+#install_version("rJava", version = "0.9-9", repos = "http://cran.us.r-project.org")
+############################################################################
+# BEST ANSWER:  https://github.com/MTFA/CohortEx/wiki/Run-rJava-with-RStudio-under-OSX-10.10,-10.11-(El-Capitan)-or-10.12-(Sierra)
+
+#Terminal:
+# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a rstudio
+# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a R
+
+# sudo ln -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib
+
+#R
+if (Sys.info()['sysname'] == 'Darwin') {
+   libjvm <- paste0(system2('/usr/libexec/java_home',stdout = TRUE)[1],'/jre/lib/server/libjvm.dylib')
+   message (paste0('Load libjvm.dylib from: ',libjvm))
+   dyn.load(libjvm)
+} 
+library(rJava, lib.loc="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #store in same location as other packages
+  #install.packages("glmulti", lib="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #no need to run every time
+library(glmulti)
+
+
+################################################################
+rma.glmulti <- function(formula, data, ...)
+   rma(formula, vi, data=data, method="ML", ...)
+
+res <- glmulti(yi ~ length + wic + feedback + info + pers + imag + meta, data=dat,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=128)
+#With level = 1, we stick to models with main effects only. This implies
+################################################################################
+
+rma.glmulti <- function(data, formula, random, vi, V ) #vi = weight, V= SD
+   rma(data=data, formula, random, vi, V, method="ML", struct="AR") #important to use ML (instead of REML) estimation, since log-likelihoods (and hence information criteria) are not directly comparable for models with different fixed effects
+
+res <- glmulti(data=df.c, ratio_all ~ crop_group + irrigation + crop_system + lat_group + clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, 
+               random=~depth|ACC,
+               vi= df.c$w_all, V=df.c$SD_all,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=4096) #confsetsize = 2^12
+
+df.c$w_all
+res <- glmulti(data=df.c, ratio_all ~ crop_group + irrigation + crop_system + lat_group + clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, 
+                vi=df.c$SD_all  , random=~depth|ACC,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=2^12) 
+#level =1 main effects only
+
+res <- glmulti(yi ~ length + wic + feedback + info + pers + imag + meta, data=dat,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=128)
+
+
+all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, struct="AR")
+
+#############################################
+
+m.c<-as.matric(df.c)
+str(SD_all)
+
 ### all studies (with fertilized and zero controls), no study weights used
+#mods <- model.matrix(yi, data=data) 
+
 all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, struct="AR") #W=w_all, 
-summary(all.rma.ar.nowt) # intercept (ACC) is highly significant
+summary(all.rma.ar.nowt) # intercept (ACC) is highly significant #AIC=23135.5065    #BIC=23148.2680
 
 ### NULL model, all studies, study weights used
 all.rma.ar.null <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
-summary(all.rma.ar.null) # intercept (ACC?) is highly significant; AIC = 826
+summary(all.rma.ar.null) # intercept (ACC?) is highly significant; AIC = 23136.1616 BIC=23148.9231
 
 #check if type of control effects the model, studies weighted by N
 all.rma.ar.ctrl <- rma.mv(data=df.c, ratio_all ~ control.type, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
 summary(all.rma.ar.ctrl) # control type not significant, only intercept
 
 #all studies - test all categorical parameters
-all.rma.ar.cat <- rma.mv(data=df.c, ratio_all ~ crop_group+irrigation+crop_system+lat_group + clay_group+ pH_group+ SOC_int_group+duration_even+C.rate_group+amend_N_kg.ha_group+amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 60
+all.rma.ar.cat <- rma.mv(data=df.c, ratio_all ~ crop_group+irrigation+crop_system+lat_group + clay_group+ pH_group+ SOC_int_group+duration_even+C.rate_group+amend_N_kg.ha_group+amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 60 #BIC 82.38
 summary(all.rma.ar.cat) # 
 
 
+step(all.rma.ar.cat, scope=list(lower=~1,upper=formula(all.rma.ar.cat)), direction="both")
+
+str(df.c)
 #amendment group
-all.rma.ar.am <- rma.mv(data=df.c, ratio_all ~ amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 284
+all.rma.ar.am <- rma.mv(data=df.c, ratio_all ~ amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 22297.7524 BIC 22348.5888
 summary(all.rma.ar.am) #  
 
 #all studies - test all continous parameters #doesn't work
@@ -627,9 +611,10 @@ zf.rma1 <- rma.mv(data=mydf.zf, ratio_zf ~ weight.dry , random= ~depth|ACC,   V=
 ###   independent, while effects or outcomes with the same value/level of the outer grouping variable/factor share 
 ###   correlated random effects corresponding to the levels of the inner grouping variable/factor
 #calcualte response ratio per parameter per study
+names(df)
 df %>% 
   group_by(ACC, param) %>%
-  mutate(rr.zf = log(df$X_a/df$X_zf), rr.cf = log(df$X_a/df$X_cf))
+  mutate(rr.zf = log(X_a/X_zf), rr.cf = log(X_a/X_cf)) -> df.grouped
   #summarise_each(funs(mean), Cancelled, Diverted)
 ```
 
@@ -693,3 +678,39 @@ cont2.table[(cont2.table$p.value<=.05),]
 
 ####References
 Bootstrap/max likelihood: https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2001GC000253
+
+```{r, 0. climate data, eval=FALSE}
+#http://www.worldclim.org/formats1
+
+#tmean , prec ; 12 data layers 1 for each month
+#BIO1 = Annual Mean Temperature; BIO2 = Mean Diurnal Range (Mean of monthly (max temp – min temp)); BIO3 = Isothermality (BIO2/BIO7) (* 100)
+#BIO4 = Temperature Seasonality (standard deviation *100); BIO5 = Max Temperature of Warmest Month, BIO6 = Min Temperature of Coldest Month
+#BIO7 = Temperature Annual Range (BIO5-BIO6), BIO8 = Mean Temperature of Wettest Quarter, BIO9 = Mean Temperature of Driest Quarter
+#BIO10 = Mean Temperature of Warmest Quarter, BIO11 = Mean Temperature of Coldest Quarter, BIO12 = Annual Precipitation
+#BIO13 = Precipitation of Wettest Month, BIO14 = Precipitation of Driest Month, BIO15 = Precipitation Seasonality (Coefficient of Variation)
+#BIO16 = Precipitation of Wettest Quarter, BIO17 = Precipitation of Driest Quarter, BIO18 = Precipitation of Warmest Quarter, BIO19 = Precipitation of Coldest Quarter
+
+#download resolution of climate data desired: http://worldclim.org/version2 #version 2 = 1970-2000
+  #or version 1.4, under generic grid format, downlaod bioclim 2.5 from https://www.worldclim.org/current
+
+#r <- raster::getData("worldclim",var="bio",res=2.5)
+
+
+# also possible to get future climate data: 
+# https://rdrr.io/cran/raster/man/getData.html
+
+#r <- r[[c(1,12)]] #Bio1 and Bio12 selected
+#names(r) <- c("Temp","Prec")
+
+#lats <- c(df$lat.dec.degree) #use spTransform if not in WGS 84 lat/lon (EPSG 4326)
+#longs <- c(df$long.dec.degree) 
+# coords <- data.frame(x=longs,y=lats)
+
+# points <- SpatialPoints(coords, proj4string = r@crs)
+# values <- raster::extract(r,points)
+
+#df.clim <- cbind.data.frame(coordinates(points),values); head(df.clim,2)
+#df.clim$Temp<-df.clim$Temp/10 #WorldCLim data hs a scale factor of 10 for temp
+#WriteXLS(df.clim, "ometa_climate.xls") #specific file here
+
+```
