@@ -230,3 +230,45 @@ pairwise.adonis <- function(x,factors, sim.method = 'bray', p.adjust.m ='bonferr
   return(pairw.res)
 }
 ###
+
+#Intall Java - and some notes
+#############################################################################
+#better instrutions: getting R to use the correct Java version: https://github.com/Utah-Data-Science/Home_repo/wiki/Getting-R-to-use-the-correct-Java-version
+
+#1. IN TERMINAL
+#My Jav versions -> /usr/libexec/java_home -V
+#current Java version installed -> java -version
+# print JAVA_HOME -> /usr/libexec/java_home 
+#update paths to version I have ->
+# export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre"
+# export LD_LIBRARY_PATH=/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server 
+# export PATH=$PATH:$JAVA_HOME/bin
+
+#2. choose java option in R
+system("java -version") #check java version running in R
+
+Sys.getenv("JAVA_HOME") #if this returns an empty stirng, but set "JAVA_HOME"
+Sys.setenv('JAVA_HOME'="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/")
+
+options(java.home="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk")
+Sys.setenv(DYLD_FALLBACK_LIBRARY_PATH="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server/")
+#library(devtools)
+#install_version("rJava", version = "0.9-9", repos = "http://cran.us.r-project.org")
+############################################################################
+# BEST ANSWER:  https://github.com/MTFA/CohortEx/wiki/Run-rJava-with-RStudio-under-OSX-10.10,-10.11-(El-Capitan)-or-10.12-(Sierra)
+
+#Terminal:
+# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a rstudio
+# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a R
+
+# sudo ln -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib
+
+#R
+if (Sys.info()['sysname'] == 'Darwin') {
+  libjvm <- paste0(system2('/usr/libexec/java_home',stdout = TRUE)[1],'/jre/lib/server/libjvm.dylib')
+  message (paste0('Load libjvm.dylib from: ',libjvm))
+  dyn.load(libjvm)
+} 
+library(rJava, lib.loc="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #store in same location as other packages
+#install.packages("glmulti", lib="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #no need to run every time
+library(glmulti)
