@@ -12,6 +12,7 @@ STATS OVERVIEW:
 mixed model for meta-analysis (regression?) with maximum likelihood 
        (hierarchical w study and depth as groups) 
        OR I could run different analyssis every 20cm
+  -need mixed effect to account for studies with multiple amendments in 1 study (autocorrelated)
        
 parameter = carbon stock 
 moderators = initial soil conditions, other environmental factors, management
