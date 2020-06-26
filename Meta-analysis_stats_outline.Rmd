@@ -5,7 +5,7 @@ date: "1/13/2020"
 output: word_document
 ---
 
-Updated: 20200626
+Updated: 20200626 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
