@@ -4,6 +4,8 @@ output: html_notebook
 editor_options: 
   chunk_output_type: console
 ---
+
+Updated: 20200626
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
