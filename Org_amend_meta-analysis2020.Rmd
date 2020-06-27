@@ -460,18 +460,11 @@ I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
   
   for(i in 1:ncol(mods1)){
     
-    
-  }
-    
-    
-    
-    
     ad = adonis(x[factors %in% c(co[1,elem],co[2,elem]),] ~ factors[factors %in% c(co[1,elem],co[2,elem])] , method =sim.method);
     pairs = c(pairs,paste(co[1,elem],'vs',co[2,elem]));
     F.Model =c(F.Model,ad$aov.tab[1,4]);
     R2 = c(R2,ad$aov.tab[1,5]);
     p.value = c(p.value,ad$aov.tab[1,6])
-  }
   p.adjusted = p.adjust(p.value,method=p.adjust.m)
   pairw.res = data.frame(pairs,F.Model,R2,p.value,p.adjusted)
   return(pairw.res)
@@ -897,7 +890,7 @@ plot(df.c$ratio_all, df.c$amend_N_kg.ha) #not linear, 2 outliers
 plot(df.c$ratio_all, df.c$MAP)
 ```
 
-```{r, 11. mixed-effect meta-analysis (regression) }
+```{r, 11. mixed-effect meta-analysis duplicate (regression) }
 
 
 

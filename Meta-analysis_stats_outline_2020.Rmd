@@ -11,6 +11,9 @@ GOAL:
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 STATS OVERVIEW:
+
+~~ Here Courtland adds a comment to see how version control works!!
+
 mixed model for meta-analysis (regression?) with maximum likelihood 
        (hierarchical w study and depth as groups) 
        OR I could run different analyssis every 20cm
@@ -34,7 +37,7 @@ Which moderators best explain the variance? Qw and Qb calculations (how do I get
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 STATS QUESTIONS:
 a. Is the effect different from zero? (are there outliers of effect sizes?)
-      -YES, bootrapped mean effect sizes for the global meta-analysis
+      -YES, bootrapped mean effect sizes for the global meta-analysis are diffferent from zeo - both with zero control and fertlizer control (positive effect)
 b. Examine degree of heterogeneity of effect sizes
         -Account for between study varition (2nd source of heterogeneity)
         -USE either Qt, or I2 is more accurate between meta-analysis comparison
@@ -42,7 +45,7 @@ c. Estimate standard deviation of studies
        (1) assume normal and S = 1 ; (2) impute from studies with data (SD/mean ratio for complete studies AND (3) regression S = alpha +beta*n)
 d. Calculate weight of each study (based on sample size of control and trt) (p205)
 
-e. Make statistical inference to derive estimates, test hypothese, make deicions based on the model
+e. Make statistical inference to derive estimates, test hypothese, make decisions based on the model
        -calculate Q for each moderator? Or calucate I2 (pg 112) 
        -bootstrappping and 95% CI on factors (p 123)
 f. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
@@ -67,8 +70,8 @@ Do effects differ between minimum controls vs fertilzed controls?
 
 0 *** Assess correlation of moderators*** -> find a group where moderators are not confounded and run analysis -results are different than the global effects?
 Do the following moderators help predict change in soil carbon stocks:
-1. Amendment type
-2. Amendment rate
+1. Amendment type - coded to group, a couple of columns
+2. Amendment rate - 
 3. Amendment C:N ratio
 4. C pool  
 5. Time since amendment start
@@ -96,7 +99,7 @@ echo=false supresses code; include=false supressed output
 COMPLETED:
         1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
         2) convert SE (sm) to SD (large) (assumed it was SE (small) and convert to SD = make larger)
-        3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios
+        3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios **major limitation with stock calcs
         4) Imputed error in the form of SD with ratios (SD/X'mean') and regrssion SD= alpha +beta (N) ; 36% have errors reported
         5) Checked heterogeneity within meta-analysis due to different studies (section 8); calculated I2 statistic
         6) Remove correlated factors:  pH and MAT = .98 and MAT/MAP; elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333
