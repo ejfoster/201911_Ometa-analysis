@@ -20,6 +20,8 @@ moderators = initial soil conditions, other environmental factors, management
 covariate = length of study (months)??
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+#l 257 shapiro wilk tests of normality
 ```{r, 1. prelimary - load packages, include=FALSE}
 #include=FALSE supress this output when knitting doc
 uzdir<-("/Users/macuser/Dropbox/9Meta_analysis_organic/Statistical_meta_analysis/Ometa2019") #save long name as user directory uzdir
@@ -253,10 +255,9 @@ qqnorm(f);qqline(f) #1 outlier
 qqnorm(z);qqline(z)
 qqnorm(all); qqline(all)
 df.c$ratio_all[df.c$ratio_all >1.9] <-"NA"
-<<<<<<< HEAD
+
 df.c$ratio_all<-as.numeric(df.c$ratio_all) #make ratio_all numeric, after adding the NA
-=======
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
+
 
 shapiro.test(f) #not normal
 shapiro.test(z) #not normal
@@ -540,7 +541,7 @@ boot.ci(results.cf) #,type="bca") #significant if do not inclue 1
  #Percentile 95%   ( 0.1270,  0.1736 )
 ```
 
-<<<<<<< HEAD
+
 ```{r, Graphs + Check regression, assumptions, and for correlation among parameters}
 ##########################################################################################################
 ###
@@ -564,10 +565,11 @@ plot(df.c$ratio_all, df.c$amend_N_kg.ha) #not linear, 2 outliers
 plot(df.c$ratio_all, df.c$MAP)
 
 #2. correlation of covarites (multicolinearity)
-=======
+```
+
+
 ```{r, 10. check regression, assumptions, and for correlation among parameters}
 
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
 #continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, time.n.mos, Nfert_rate
    #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
     #initial continuous: SOC_g.kg, pH, clay
@@ -581,7 +583,7 @@ pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
 #CORRELATED: pH and MAT = .98 and MAT/MAP =.65; 
            #elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333 + amend_N =.32;
 
-<<<<<<< HEAD
+
 ### remove elevation and MAT 
 
 # 3. Heteroscadicity (equal variance)
@@ -770,9 +772,7 @@ plot(M, x,ylab="ACC & Treatments", xlab="Effect Size",
  arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
  arrows(y0=1150, x0=MA-SDA, y1=1150, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="red") #1150 is the 'pretend' At to plot the grand mean
 
-=======
 #remove elevation and MAT
-
 
 ###### Check assumptions of regression ############
 #crop_group + irrigation + crop_system + lat_group +clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP
@@ -868,21 +868,15 @@ plot(M, x,ylab="ACC", xlab="Effect Size",
  arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
  arrows(y0=1150, x0=MA-SDA, y1=1150, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="red") #1150 is the 'pretend' ACC to plot the grand mean
 
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
 points(M, x,pch=16,cex=.75)
 points(MA, 1150, col="red", pch=5,cex=2)
 
 (exp(MA)-1)*100 # % change with amendment 17% for fertilized controls (32% for zero-fertilized controls)
-<<<<<<< HEAD
 ```
 
 ```{r, 11. mixed-effect meta-analysis (regression) }
-=======
-
-
 
 #1. linearity
-
 plot(df.c$ratio_all, df.c$crop_group) # not even numbers/spread
 plot(df.c$ratio_all, df.c$irrigation) # more even numbers/spread
 plot(df.c$ratio_all, df.c$crop_system) #even
@@ -899,9 +893,6 @@ plot(df.c$ratio_all, df.c$MAP)
 
 ```{r, 11. mixed-effect meta-analysis (regression) }
 
-
-
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
 length(df.c$ratio_all)
 ### Auto correlation rma: https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv
 ### lmer models with random effects (and intercepts): https://stats.stackexchange.com/questions/31569/questions-about-how-random-effects-are-specified-in-lmer
@@ -910,15 +901,11 @@ length(df.c$ratio_all)
 
 #need to get rid of NAs, could impute the data if needed
 df.rma<-df.c[which(!is.na(df.c$ratio_all)), ] #delete rows where ratio = NA
-<<<<<<< HEAD
 
 #prep data set, remove rows with NA in moderators 
 
-=======
-
 #prep data set, remove rows with NA in moderators 
 
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
 dat <- df.c[!apply(df.c[ , c("crop_group", "irrigation" , "crop_system", "lat_group", "clay_group" ,"pH_group" , "SOC_int_group")], 1, anyNA),]
 
 #### Example online ##################################################################
@@ -945,15 +932,6 @@ res1 <- glmulti(df.rma$ratio_all ~ crop_group + irrigation + crop_system + lat_g
                level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=128)
 ################################
 
-<<<<<<< HEAD
-
-
-=======
-
-
-
-
->>>>>>> 74a7ff06d46b89f06e47e2ca9ebc3ec56de9db7a
 res.all <- glmulti(ratio_all ~ crop_group + irrigation + crop_system + lat_group +clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, vi=df.c$SD_all, data=df.c,random=~depth|ACC,
                level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=4096)
 #With level = 1, we stick to models with main effects only; CI = 95% default

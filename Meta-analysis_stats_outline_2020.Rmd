@@ -4,6 +4,18 @@ author: "Erika Foster"
 date: "1/13/2020"
 output: word_document
 ---
+Notes and Questions - Meetign w Courtland 20200626
+-normality of residuals??? meta-regression??
+-shorter term studies included?
+-how to treat zf/cf?
+-difference after multiplication by BD? (if not reported in the treatments - how can we get at stocks) - use MEMS model to predict BD and thus change in stocks
+-leave in MAP/MAT ? aridity index instead?
+-use latitute (not post/neg) BUT as a "northness"
+   #to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?) Can we just include both cf and zf from a single paper, where autocorrelation is accounted for in the ACC number???
+
+-GitHub
+
+-Send Courtland:: Gurevitch 1992
 
 Updated: 20200626 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -11,20 +23,20 @@ GOAL:
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 STATS OVERVIEW:
-mixed model for meta-analysis (regression?) with maximum likelihood 
+mixed model for meta-analysis (regression?) with maximum likelihood #random effect is study, 
        (hierarchical w study and depth as groups) 
        OR I could run different analyssis every 20cm
   -need mixed effect to account for studies with multiple amendments in 1 study (autocorrelated)
        
 parameter = carbon stock 
 moderators = initial soil conditions, other environmental factors, management
-covariate = length of study (months)??
+covariate = length of study (months)?? 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 WORKING ON:
-glmulti - get the df.c_ratio_all data to work -> make sure thh cf and zf dataframes are combinging correctly
+glmulti - get the df.c_ratio_all data to work -> make sure the cf and zf dataframes are combinging correctly
 
 Bootstrap Qb values for different parameters - how can this incorporate ACC (strata?)? Autocorrelation w depth?
-    -if depth is just another parameter, no testing of how the other parameters vary with depth...
+    -if depth is just another moderator, no testing of how the other parameters vary with depth...
 
 Need to bias correct bootstrap - <50% of distribution above mean
 I2 test of each moderator instead of Qb value?
@@ -59,7 +71,7 @@ g. Check assumptions
 h. Discuss generaliziability and limitations
         -SE assumed rather than SD when not recorded (more conservative)
 i. Gaps where more primary studies are needed?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 RESEARCH QUESTIONS:
 Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
 How does amendment stabilizaiton of SC change with depth? with time?
@@ -101,7 +113,7 @@ COMPLETED:
         5) Checked heterogeneity within meta-analysis due to different studies (section 8); calculated I2 statistic
         6) Remove correlated factors:  pH and MAT = .98 and MAT/MAP; elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333
                 =remove elevation and MAT (keep MAT/MAP)
-        7) analyze fertilized and zero controls #to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
+        7) analyze fertilized and zero controls #to combine datasets - use fertilized controls when possibl e= had a lower effect size (will not overestimate the effect?)
 
 
 ~~~~~~~~~~~~
