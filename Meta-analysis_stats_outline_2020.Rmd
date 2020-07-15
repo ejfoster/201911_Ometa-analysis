@@ -4,18 +4,21 @@ author: "Erika Foster"
 date: "1/13/2020"
 output: word_document
 ---
-Notes and Questions - Meetign w Courtland 20200626
+
+-push .csv
+
+Notes and Questions - Meeting w Courtland Kelly 20200626
 -normality of residuals??? meta-regression??
 -shorter term studies included?
 -how to treat zf/cf?
 -difference after multiplication by BD? (if not reported in the treatments - how can we get at stocks) - use MEMS model to predict BD and thus change in stocks
 -leave in MAP/MAT ? aridity index instead?
--use latitute (not post/neg) BUT as a "northness"
    #to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?) Can we just include both cf and zf from a single paper, where autocorrelation is accounted for in the ACC number???
 
 -GitHub
-
+Completed: 20200713
 -Send Courtland:: Gurevitch 1992
+-use latitute (not post/neg) BUT as a "north-ness" (ONLY CHANGED ACC 843 and 188)
 
 Updated: 20200626 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
