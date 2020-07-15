@@ -5,14 +5,12 @@ date: "1/13/2020"
 output: word_document
 ---
 
-Updated: 20200626 
+Updated: 20200715
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 STATS OVERVIEW:
-
-~~ Here Courtland adds a comment to see how version control works!!
 
 mixed model for meta-analysis (regression?) with maximum likelihood 
        (hierarchical w study and depth as groups) 
@@ -24,8 +22,11 @@ moderators = initial soil conditions, other environmental factors, management
 covariate = length of study (months)??
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 WORKING ON:
+recheck assumptions of regression - will a meta-regression be possible with this dataset??
+  
 glmulti - get the df.c_ratio_all data to work -> make sure thh cf and zf dataframes are combinging correctly
 
+   IF NOT THEN CONTINUE BELOW:
 Bootstrap Qb values for different parameters - how can this incorporate ACC (strata?)? Autocorrelation w depth?
     -if depth is just another parameter, no testing of how the other parameters vary with depth...
 
@@ -125,3 +126,154 @@ Code that did not get rJava and glmulti to work:
   #install.packages(packurl, repos=NULL, type="source")
 
 ###########################
+
+~~~~~~~~~~~~
+
+################################################################################
+################################################################################
+################################################################################
+Meta - regression old code - save
+
+rma1 <- rma(ratio_all, vi=SD_all, 
+             mods = ~ C.rate_group, 
+            data=df.c, method="ML") #important to use ML (instead of REML) estimation, since log-likelihoods (& hence information criteria) are not directly comparable for models with different fixed effects
+aov.rma1<-anova(rma1) #btt=1) #Wald-type test of the moderators (btt= designates which coefficient to test, or all)
+res1<-residuals(rma1); plot(res1); abline(0,0)
+
+
+### all studies (with fertilized and zero controls), no study weights used
+#mods <- model.matrix(yi, data=data) 
+
+all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="ML", V=SD_all, struct="AR") #W=w_all, 
+summary(all.rma.ar.nowt) # intercept (ACC) is highly significant #AIC=23135.5065    #BIC=23148.2680
+res1<-resid(all.rma.ar.nowt)
+plot(res1); abline(0,0)
+mean(res1, na.rm=T)
+ 
+### NULL model, all studies, study weights used
+all.rma.ar.null <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
+summary(all.rma.ar.null) # intercept (ACC?) is highly significant; AIC = 23136.1616 BIC=23148.9231
+
+#check if type of control effects the model, studies weighted by n
+all.rma.ar.ctrl <- rma.mv(data=df.c, ratio_all ~ control.type, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") 
+summary(all.rma.ar.ctrl) # control type not significant, only intercept
+
+#all studies - test all categorical parameters
+all.rma.ar.cat <- rma.mv(data=df.c, ratio_all ~ crop_group+irrigated+crop_system+lat_group + clay_group+ pH_group+ SOC_int_group+duration_even+C.rate_group+amend_N_kg.ha_group+amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 60 #BIC 82.38
+summary(all.rma.ar.cat) # 
+resid.all.rma.ar.cat<-resid(all.rma.ar.cat)
+ plot(resid.all.rma.ar.cat)
+  shapiro.test(resid.all.rma.ar.cat)
+
+step(all.rma.ar.cat, scope=list(lower=~1,upper=formula(all.rma.ar.cat)), direction="both")
+
+str(df.c)
+#amendment group
+all.rma.ar.am <- rma.mv(data=df.c, ratio_all ~ amend_group, random= ~depth|ACC, method="REML", V=SD_all, W= w_all, struct="AR") #AIC 22297.7524 BIC 22348.5888
+summary(all.rma.ar.am) #  
+
+#all studies - test all continous parameters #doesn't work
+ 
+
+#INTERESTING:
+### effect of furrow irrigaiton
+names(df)
+#categorical: amend_group, amend, crop_group, irrigation, crop_system
+   #made categoricals: lat_group, clay_group, pH_group, SOC_int_group, Nfert_group, C.rate_group
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, exp_duration_mos, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
+
+#####################################################################
+### A.  studies with fertilized control 
+#####################################################################
+#null model, intercept only 
+cf.rma.ar0 <- rma.mv(data=mydf.cf, ratio_cf ~ 1, random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") ; summary(cf.rma.ar0) #AIC = 516.33 (lower AIC = better fit)
+     #nested hierarchical model accounts for similarities between depths within the same ACC - only allows 2 levels
+
+cf.rma.ar.nowt <- rma.mv(data=mydf.cf, ratio_cf ~ 1, random= ~depth|ACC,   V=SD_cf_imp,  method="REML", struct="AR") ; summary(cf.rma.ar.nowt) #AIC 515.86 ; no weights W=w.cf removed
+
+cf.rma.ar.test <- rma.mv(data=mydf.cf, ratio_cf ~ MAP+clay+amend_group, random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") ; summary(cf.rma.ar.test) #AIC 160.10
+str(mydf.zf)
+
+names(df)
+
+#categorical: amend_group, amend, crop_group, irrigation, crop_system, 
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg, exp_duration_mos, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
+#####################################################################
+### B. studies with zero fertilizer input controls
+#####################################################################
+zf.rma.ar0 <- rma.mv(data=mydf.zf, ratio_zf ~ 1, random= ~depth|ACC,   V=SD_zf_imp, W= w.zf, method="REML", struct="AR") ; summary(zf.rma.ar0) #AIC = 386.08 (lower AIC = better fit)
+
+zf.rma.ar.nowt <- rma.mv(data=mydf.zf, ratio_zf ~ 1,  V=SD_zf_imp, method="REML", struct="AR") #level=95 
+
+zf.rma.ar.test <- rma.mv(data=dmydf.zf, ratio_zf ~ MAP+clay+amend_group,  V=SD_cf_imp, W=w.cf, method="REML") #level=95 
+zf.rma.ar.test
+
+zf.rma1 <- rma.mv(data=mydf.zf, ratio_zf ~ weight.dry , random= ~depth|ACC,   V=SD_cf_imp, W= w.cf, method="REML", struct="AR") #level=95 
+
+#from github Gurevitch et al https://github.com/KatharinaGerstner/LUBDES_MA :
+
+#rma.mv(yi=Log.RR, V=M.matrix(modelDataRichness)+diag(Log.RR.Var),mods=~LUI.range.level-1, 
+#                                random = list(~1|Study.Case, ~1|Study.ID),
+#                             slab=paste(Study.Case, Low.LUI, High.LUI,sep="_"),
+#                    method="REML", tdist=FALSE, level=95,digits=4,data=modelDataRichness)       
+# Viechtbauer 2015 p 189: the random argument can also contain one (and only one!) formula of the form ~ inner | outer . 
+#   Effects or outcomes with different values/levels of the outer grouping variable/factor are assumed to be 
+#   independent, while effects or outcomes with the same value/level of the outer grouping variable/factor share 
+#   correlated random effects corresponding to the levels of the inner grouping variable/factor
+
+
+################################################################################
+################################################################################
+################################################################################
+Code using glmulit and rma as a function:
+
+#### Example online ##################################################################
+#rma.glmulti2 <- function(formula, data, ...){
+#   rma(formula, vi, data=data, method="ML", ...) #vi = variance ; weights = weight
+#res <- glmulti(yi ~ length + wic + feedback + info + pers + imag + meta, data=dat,
+#               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=128) }  #With level = 1, we stick to models with main effects only 
+#################################################################################### 
+
+rma.glmulti.w <- function(formula, vi, weights, random, data){
+d.w<-rma(formula, vi, weights, data, random, method="ML", struct="AR")  #important to use ML (instead of REML) estimation, since log-likelihoods (& hence information criteria) are not directly comparable for models with different fixed effects
+rma.glmulti.w(df.rma$ratio_all ~ df.rma$crop_group + df.rma$irrigation + df.rma$crop_system + df.rma$lat_group +df.rma$clay_group + df.rma$pH_group + df.rma$SOC_int_group, vi=df.rma$SD_all, weights=df.rma$w_all, random=~df.rma$depth|df.rma$ACC, data=df.rma)
+
+length(df.rma$w_all) 
+length(df.rma$ratio_all)
+
+View(df.rma)
+
+################################
+
+res.all <- glmulti(ratio_all ~ crop_group + irrigation + crop_system + lat_group +clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, vi=df.c$SD_all, data=df.c,random=~depth|ACC,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=4096)
+#With level = 1, we stick to models with main effects only; CI = 95% default
+################################################################################
+
+res <- glmulti(data=df.c, ratio_all ~ crop_group + irrigated + crop_system + lat_group + clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, 
+               random=~depth|ACC,
+               vi= df.c$w_all, V=df.c$SD_all,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=4096) #confsetsize = 2^12
+
+df.c$w_all
+res <- glmulti(data=df.c, ratio_all ~ crop_group + irrigation + crop_system + lat_group + clay_group + pH_group + SOC_int_group + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + MAP, 
+                vi=df.c$SD_all  , random=~depth|ACC,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=2^12) 
+#level =1 main effects only
+
+res <- glmulti(yi ~ length + wic + feedback + info + pers + imag + meta, data=dat,
+               level=1, fitfunction=rma.glmulti, crit="aicc", confsetsize=128)
+
+
+all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="REML", V=SD_all, struct="AR")
+
+################################################################################
+################################################################################
+################################################################################
+
