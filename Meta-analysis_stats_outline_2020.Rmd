@@ -1,0 +1,127 @@
+---
+title: "Meta-analysis:Code_meta_data"
+author: "Erika Foster"
+date: "1/13/2020"
+output: word_document
+---
+
+Updated: 20200626 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GOAL: 
+Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+STATS OVERVIEW:
+
+~~ Here Courtland adds a comment to see how version control works!!
+
+mixed model for meta-analysis (regression?) with maximum likelihood 
+       (hierarchical w study and depth as groups) 
+       OR I could run different analyssis every 20cm
+  -need mixed effect to account for studies with multiple amendments in 1 study (autocorrelated)
+       
+parameter = carbon stock 
+moderators = initial soil conditions, other environmental factors, management
+covariate = length of study (months)??
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+WORKING ON:
+glmulti - get the df.c_ratio_all data to work -> make sure thh cf and zf dataframes are combinging correctly
+
+Bootstrap Qb values for different parameters - how can this incorporate ACC (strata?)? Autocorrelation w depth?
+    -if depth is just another parameter, no testing of how the other parameters vary with depth...
+
+Need to bias correct bootstrap - <50% of distribution above mean
+I2 test of each moderator instead of Qb value?
+Must I down weight studies with imputed error?
+Can I bootstrap to check distribution of the variances?
+Which moderators best explain the variance? Qw and Qb calculations (how do I get a p-value? = CIs?)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+STATS QUESTIONS:
+a. Is the effect different from zero? (are there outliers of effect sizes?)
+      -YES, bootrapped mean effect sizes for the global meta-analysis are diffferent from zeo - both with zero control and fertlizer control (positive effect)
+b. Examine degree of heterogeneity of effect sizes
+        -Account for between study varition (2nd source of heterogeneity)
+        -USE either Qt, or I2 is more accurate between meta-analysis comparison
+c. Estimate standard deviation of studies
+       (1) assume normal and S = 1 ; (2) impute from studies with data (SD/mean ratio for complete studies AND (3) regression S = alpha +beta*n)
+d. Calculate weight of each study (based on sample size of control and trt) (p205)
+
+e. Make statistical inference to derive estimates, test hypothese, make decisions based on the model
+       -calculate Q for each moderator? Or calucate I2 (pg 112) 
+       -bootstrappping and 95% CI on factors (p 123)
+f. Meta regression (random effect = study), specifically a mixed model,  & test factor influence on the effective size (see list below of 16 factors extracted)
+       -metafor mods<-cbind(a, b, c) ; mima (yi, vi, mods, method = "REML")
+g. Check assumptions
+       (1) fit assumptions of statisitcal models
+       (2) test publicaiton bias (p219)
+       (3) check stat power of tests
+       (4) test sensitivity of results to inclusion/exlustion of data - does it change main conclusions
+              -imputed SD, estimated 1, only complete studies
+              -w and w/out the outliers
+              -leave one out (studies or categories)
+       (5) check manuscripts (Ch 20)
+h. Discuss generaliziability and limitations
+        -SE assumed rather than SD when not recorded (more conservative)
+i. Gaps where more primary studies are needed?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+RESEARCH QUESTIONS:
+Is the overall effect of amendments positive (different from zero) on soil carbon stocks?
+How does amendment stabilizaiton of SC change with depth? with time?
+Do effects differ between minimum controls vs fertilzed controls?
+
+0 *** Assess correlation of moderators*** -> find a group where moderators are not confounded and run analysis -results are different than the global effects?
+Do the following moderators help predict change in soil carbon stocks:
+1. Amendment type - coded to group, a couple of columns
+2. Amendment rate - 
+3. Amendment C:N ratio
+4. C pool  
+5. Time since amendment start
+
+Environmental factors
+6. MAP
+7. MAT
+8. MAP/MAT
+9.  XXXXX place holder...
+10. **Lattitude**
+
+Initial soil proerpties
+11. Texture
+12. Initial SOC
+13. pH
+
+Management
+14. Crop System
+15. Irrigation type
+16. Fertilizer input
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+NOTES:
+echo=false supresses code; include=false supressed output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+COMPLETED:
+        1) Make categories for each variable = cropping system (monocrop, rotation), crop type (grain, row, legume, forage), years of application, type of amendment, soil pH, SOC content intial, clay content, latitute, C rate applied, dry weight, N rate 
+        2) convert SE (sm) to SD (large) (assumed it was SE (small) and convert to SD = make larger)
+        3) Calculated stocks for the df.c data frame only -> no need to calculate the response ratios again, as the BD did not change and they are the same as the C concentraiton ratios **major limitation with stock calcs
+        4) Imputed error in the form of SD with ratios (SD/X'mean') and regrssion SD= alpha +beta (N) ; 36% have errors reported
+        5) Checked heterogeneity within meta-analysis due to different studies (section 8); calculated I2 statistic
+        6) Remove correlated factors:  pH and MAT = .98 and MAT/MAP; elevation and time.n.mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333
+                =remove elevation and MAT (keep MAT/MAP)
+        7) analyze fertilized and zero controls #to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
+
+
+~~~~~~~~~~~~
+Code that did not get rJava and glmulti to work: 
+################################
+#in Terminal
+# sudo R CMD javareconf
+# sudo R
+#install.packages('rJava',,'http://www.rforge.net/') #did not work
+#install.packages('rJava') ,repos = "http://cran.us.r-project.org")
+
+# additional attempts
+#a
+  #dyn.load('/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server/libjvm.dylib')
+
+#b
+  #packurl<-"https://cran.r-project.org/src/contrib/Archive/rJava/rJava_0.9-9.tar.gz"
+  #install.packages(packurl, repos=NULL, type="source")
+
+###########################
