@@ -64,9 +64,6 @@ df1 %>% dplyr::select(X3,ACC,
                       amend, amend_group, weight.dry,  C.rate_Mg.ha, C.N_rate, C.rate_group, amend_N_kg.ha,amend_N_kg.ha_group,
                       X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin, trt_name ) -> df2 
 
-#create depth by groups here #Courtland
-df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
-
 #rename cmin to zf (zero fertilized control)
 df<-dplyr::rename(df2, X_zf=X_cmin, SE_zf=SE_cmin, SD_zf=SD_cmin , N_zf=N_cmin)
 
@@ -177,6 +174,7 @@ mydf.zf<-mydf.zf<-df.c[which(!is.na(df.c$ratio_zf)),]
 #calculate carbon stocks from g.kg  (g.kg/1000)*BD*(depth.end-depth.start) = g/cm2
 # Convert to t/ha => g/cm2 * (1Mg/ 1,000,000g)*(1*10^8cm2/ha) = 100
    #(1/1000000)*(1*10^8/1) 
+## Note from CK re: stock conversation: many studies did not report change in BD btw treatments, so stock change is just a multiple of % change or other measurement; may not be correct to report since we would assume BD should change with ammendment addition. 
 df.c$X_a_stock<-ifelse(df.c$units == "g.kg", 
                        df.c$X_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
                        df.c$X_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
@@ -232,7 +230,7 @@ df.c$SD_cf_reg<-ifelse(is.na(df.c$SD_cf), 26.430-6.166*(df.c$N_cf), df.c$SD_cf)
 df.c$SD_zf_reg<-ifelse(is.na(df.c$SD_zf), 12.210-2.461*(df.c$N_zf), df.c$SD_zf)
 df.c$SD_a_reg<-ifelse(is.na(df.c$SD_a), 25.731-5.496*(df.c$N_a), df.c$SD_a)
 
-### create column of response ratios with fertlized controls as main effets, and only use zero controls when other option not possible
+### create column of response ratios with fertilized controls as main effects, and only use zero controls when other option not possible
 #dataframes with non NAs for fert and zero controls = mydf.fert; mydf.zf and combined
 str(df.c)
 mydf.cf$ratio_comb<-mydf.cf$ratio_cf
@@ -287,9 +285,36 @@ df.c$ratio_all<-as.numeric(df.c$ratio_all)
 ###
 ##########################################################################################################
 # use bias corrected CIs (account for non parametric data)
+
+
 #create one depth variable, mean of depth start and stop
-df.c$depth<-(df.c$depth.end+df.c$depth.start)/2 #Courtland - could create depth group here
-#df.sub<-subset(df.c, depth <= 20); length(df.sub) #subset by depth
+df.c$depth<-(df.c$depth.end+df.c$depth.start)/2 #Courtland - could create depth group here - done!
+mean(df.c$depth)
+sd(df.c$depth)
+max(df.c$depth)
+
+#create subset data frames by depth increment -> categorize based on mean of dpeth increment - note that original df is df2 which has RR's and %change calcs
+df.depth.15<-subset(df.c, depth <= 15); nrow(df.depth.15) #subset by depth 0-15
+df.depth.30<-subset(df.c, depth <= 30 & depth > 15); nrow(df.depth.30) #subset by depth 15-30cm
+df.depth.60<-subset(df.c, depth <= 60 & depth > 30); nrow(df.depth.60) #subset by depth 30-60cm
+df.depth.90<-subset(df.c, depth <= 90 & depth > 60); nrow(df.depth.90) #subset by depth 60-90cm
+
+## Some quick stats/analysis with subgroups created
+#average RR in each subgroup
+
+mean(na.omit(df.depth.15$ratio_all))#average RR for 0-15 depth
+mean(na.omit(df.depth.30$ratio_all))
+mean(na.omit(df.depth.60$ratio_all))
+mean(na.omit(df.depth.90$ratio_all))
+
+#quick test of subsetted data using model from below
+rma1 <- rma.mv(ratio_all, V=SD_all, 
+             mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha+ amend_N_kg.ha + Nfert_rate, random= ~1|ACC,
+            data=df.depth.15, W=w_all, method="ML"); rma1
+
+
+###### Bootstrapping code
 
 #create function to resample with
 boot_mean <- function(df_vector, resample_indices) {
