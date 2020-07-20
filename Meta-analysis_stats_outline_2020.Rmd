@@ -22,6 +22,9 @@ moderators = initial soil conditions, other environmental factors, management
 covariate = length of study (months)??
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 WORKING ON:
+1. bin by depths and run regression
+
+
 recheck assumptions of regression - will a meta-regression be possible with this dataset??
   
 glmulti - get the df.c_ratio_all data to work -> make sure thh cf and zf dataframes are combinging correctly

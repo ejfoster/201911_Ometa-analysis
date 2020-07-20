@@ -64,6 +64,9 @@ df1 %>% dplyr::select(X3,ACC,
                       amend, amend_group, weight.dry,  C.rate_Mg.ha, C.N_rate, C.rate_group, amend_N_kg.ha,amend_N_kg.ha_group,
                       X_cf, SE_cf, SD_cf, N_cf, X_a, SE_a, SD_a, N_a, X_cmin, SE_cmin, SD_cmin, N_cmin, trt_name ) -> df2 
 
+#create depth by groups here #Courtland
+df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
+
 #rename cmin to zf (zero fertilized control)
 df<-dplyr::rename(df2, X_zf=X_cmin, SE_zf=SE_cmin, SD_zf=SD_cmin , N_zf=N_cmin)
 
@@ -285,7 +288,7 @@ df.c$ratio_all<-as.numeric(df.c$ratio_all)
 ##########################################################################################################
 # use bias corrected CIs (account for non parametric data)
 #create one depth variable, mean of depth start and stop
-df.c$depth<-(df.c$depth.end+df.c$depth.start)/2
+df.c$depth<-(df.c$depth.end+df.c$depth.start)/2 #Courtland - could create depth group here
 #df.sub<-subset(df.c, depth <= 20); length(df.sub) #subset by depth
 
 #create function to resample with
@@ -431,18 +434,31 @@ names(df.c)
 #factor: At, crop_group, crop_system, irrigated, tillage_type, till_depth_group, Nfert_group, duration_group, duration_even, country,
 # lat_group, clay_group, pH_group, SOC_int_group, amend, amend_group, C.rate_group, amend_N_kg.ha_group
 
-#set up linear model
-rma1 <- rma(ratio_all, vi=SD_all, 
-             mods = ~ MAT+ MAP+ lat.dec.degree+ elevation+ pH+ clay+ SOC_g.kg+
-                  C.rate_Mg.ha+ C.N_rate+ amend_N_kg.ha+ exp_duration_mos+ Nfert_rate, 
-            data=df.c, weights=w_all, method="ML") #important to use ML (instead of REML) estimation, since log-likelihoods (& hence information criteria) are not directly comparable for models with different fixed effects
+#subgroup analysis???
+levels(df.c$crop_group)
+levels(df.c$crop_system)
+levels(df.c$tillage_type)
+# exp_duration_mos
+
+#set up linear model  #yield? #total amount of C added over the experiment
+rma1 <- rma.mv(ratio_all, V=SD_all, 
+             mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha+ amend_N_kg.ha + Nfert_rate, random= ~1|ACC,
+            data=df.c, W=w_all, method="ML"); rma1 #important to use ML (instead of REML) estimation, since log-likelihoods (& hence information criteria) are not directly comparable for models with different fixed effects
+
+#Erika which factors have NAs
+is.na(df.c$MAT); is.na(df.c$MAP); lat.dec.degree
+
+
 #install.packages("broom")
-library(broom)
-model.diag.metrics <- augment(rma1); head(model.diag.metrics)
-ggplot(model.diag.metrics, aes(youtube, sales)) +
-  geom_point() +
-  stat_smooth(method = lm, se = FALSE) +
-  geom_segment(aes(xend = youtube, yend = .fitted), color = "red", size = 0.3)
+library(broom) #testing plots to check assumptions - didn't run with rma output
+ #model.diag.metrics <- augment(rma1); head(model.diag.metrics)
+ 
+#graph residuals
+#ggplot(model.diag.metrics, aes(youtube, sales)) +
+#  geom_point() +
+#  stat_smooth(method = lm, se = FALSE) +
+#  geom_segment(aes(xend = youtube, yend = .fitted), color = "red", size = 0.3)
 
 #########################################
 # 10a. correlation of covariates minimized (multicolinearity)
@@ -450,7 +466,7 @@ ggplot(model.diag.metrics, aes(youtube, sales)) +
 param.corr<-select(df, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg,
                   C.rate_Mg.ha, C.N_rate, amend_N_kg.ha, exp_duration_mos, Nfert_rate)
 param.corr$MAT.MAP<-df$MAT/df$MAP
-
+names(df.c)
 pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
 #CORRELATED: pH and MAT = .98 and MAT/MAP =.65; 
            #elevation and exp_duration_mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333 + amend_N =.32;
