@@ -5,7 +5,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Updated: 20200720 EJF
+Updated: 20200722 EJF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
