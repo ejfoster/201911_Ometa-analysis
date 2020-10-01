@@ -1,7 +1,7 @@
 ### Main libraries used 
 ### By: Erika Foster
 ### Created:20180917
-### Updated:20200626
+### Updated:20200930
 
 ###  Objective: Place all of my commonly uploaded libraries in one source document
 
@@ -23,90 +23,87 @@
 
 #install.packages(c("sf", "raster", "spData", "spDataLarge", "tmap", "leaflet", "mapview", "gstat"))
 #structuring data, aggregating etc.
-library(dlookr); library(broom)
-library(raster); library(sp); library(mmpf); library(rgdal) #for get worldclim data
-library(psych)
-library(metafor); library(metaforest); 
-library(WriteXLS)
-library(plyr)
-library(multcomp)#for anovas
 
+#install.packages("sourcetools", type = "source")
+#install.packages("outliers")
+#install.packages("glmulti")
+
+library(boot); 
+ library(broom)
+
+library(cluster);
+library(corrgram) #correlograms
+library(corrplot); library(GGally)
+library(Cairo) #exporting plots
+ library(corrplot); library(pheatmap); #plotting
+library(CCA)
+library(car)
+library(candisc)
+
+library(doBy) #summaryBy function
+library(dplyr) #wrangling data, select
+library(dichromat)
+library(devtools)#install older versions of programs
+library(dichromat)
+ library(dlookr);
+
+library(emmeans) #for new verions of R 3.5
+library(fdrtool) #false discovery rate (FDR) in data analysis
+library (foreign);
+
+library(GGally)
+library(glmulti)
+library(gplots) #fine tune some of the other packages
+library(grid);library(ggthemes) #for graphics theme_few()
+library(ggforce)
+
+library(HH)
+library(Hmisc) #correlation
+library(htmltools)
+
+library(lmerTest);  #for lmer mixed effects models
+library(lsmeans)
+library(lattice)
+library(lme4) #anova models
+
+library(MTS) # for mulitvariate linear model
+library(MASS)
+library (Matrix); library(mgcv);
+library(multcomp)#for anovas
+library(metafor); library(metaforest); 
+ library(mmpf);
+
+library(outliers)
+
+library(psych) #for corr.test to work on matrix data
+library(plyr) #rename() 
+
+library(rgl)# 3D ordination plots 
+library(rgdal) #for get worldclim data
+library(RColorBrewer)
+library(reshape)
+library(reshape2) #for "melt ()" ggplot2 graphing
+#install.packages(c("stringi"),configure.args=c("--disable-cxx11"),repos="https://cran.rstudio.com")
+#install.packages(c("stringr"),configure.args=c("--disable-cxx11"),repos="https://cran.rstudio.com")
+library(Rmisc) #summarySE for summaries
+library(rpart); 
+library(RVAideMemoire)
+library(raster); 
+library(sp);
+library(sourcetools) 
+library(survival) 
+library(stringi); library(stringr)
 library(tidyverse) #includes  [1] "broom"      "cli"        "crayon"     "dbplyr"     "dplyr"     
 #>  [6] "forcats"    "ggplot2"    "haven"      "hms"        "httr"      
 #> [11] "jsonlite"   "lubridate"  "magrittr"   "modelr"     "pillar"    
 #> [16] "purrr"      "readr"      "readxl"     "reprex"     "rlang"     
 #> [21] "rstudioapi" "rvest"      "stringr"    "tibble"     "tidyr"     
 #> [26] "xml2"       "tidyverse" 
-library(vegan) #for CCA, for bray curtis
-
-library(lme4) #anova models
-library(lmerTest) #changes anova ()
-library(lsmeans)#anova models
-
-library(MASS) # for NMS
-
-
-#install.packages("sourcetools", type = "source")
-
-#install.packages("outliers")
 library(tidyr)
-library(stringr)
 
-library(outliers)
-library(HH)
-library(RVAideMemoire)
-library(sourcetools) 
-library(boot); library(cluster); library (foreign); library(lattice); library (Matrix); library(mgcv);
-library(rpart); library(survival) 
-library(doBy) #summaryBy function
-library(Rmisc) #summarySE for summaries
-
-library(dplyr) #wrangling data, select
-library(plyr) #rename() 
-library(Hmisc) #correlation
-library(corrgram) #correlograms
-library(corrplot); library(GGally)
-library(psych) #for corr.test to work on matrix data
-
-#graphing and exporting
-library(reshape)
-library(reshape2) #for "melt ()" ggplot2 graphing
-library(Cairo) #exporting plots
- library(corrplot); library(pheatmap); #plotting
-library(gplots) #fine tune some of the other packages
-library(grid);library(ggthemes) #for graphics theme_few()
-library(RColorBrewer)
-library(dichromat)
-library(ggforce)
-library(dichromat)
-
-#install.packages(c("stringi"),configure.args=c("--disable-cxx11"),repos="https://cran.rstudio.com")
-#install.packages(c("stringr"),configure.args=c("--disable-cxx11"),repos="https://cran.rstudio.com")
-
-library(stringi); 
-library(CCA)
-#load packages
-library(car)
-library(htmltools)
-
-#all in tidyverse
-#library(stringr); library(tidyr); library(stringr); library(ggplot2);
-
-library(plyr) # for revalue of factor levels
-#library(dplyr) #slect variables
-library(lmerTest);  #for lmer mixed effects models
-library(lsmeans)
-library(emmeans) #for new verions of R 3.5
-library(candisc)
-library(MTS) # for mulitvariate linear model
-library(MASS)
-
-library(devtools)#install older versions of programs
-library(rgl)# 3D ordination plots 
-library(fdrtool) #false discovery rate (FDR) in data analysis
 library(vegan)
-library(GGally)
 
+library(WriteXLS)
 
 ####################
 # microbiome packages
@@ -245,30 +242,29 @@ pairwise.adonis <- function(x,factors, sim.method = 'bray', p.adjust.m ='bonferr
 # export PATH=$PATH:$JAVA_HOME/bin
 
 #2. choose java option in R
-system("java -version") #check java version running in R
+#system("java -version") #check java version running in R
 
-Sys.getenv("JAVA_HOME") #if this returns an empty stirng, but set "JAVA_HOME"
-Sys.setenv('JAVA_HOME'="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/")
+#Sys.getenv("JAVA_HOME") #if this returns an empty stirng, but set "JAVA_HOME"
+#Sys.setenv('JAVA_HOME'="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/")
 
-options(java.home="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk")
-Sys.setenv(DYLD_FALLBACK_LIBRARY_PATH="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server/")
-#library(devtools)
+#options(java.home="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk")
+#Sys.setenv(DYLD_FALLBACK_LIBRARY_PATH="/Library/Java/JavaVirtualMachines/jdk1.8.0_241.jdk/Contents/Home/jre/lib/server/")
+
 #install_version("rJava", version = "0.9-9", repos = "http://cran.us.r-project.org")
 ############################################################################
 # BEST ANSWER:  https://github.com/MTFA/CohortEx/wiki/Run-rJava-with-RStudio-under-OSX-10.10,-10.11-(El-Capitan)-or-10.12-(Sierra)
 
 #Terminal:
-# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a rstudio
-# LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a R
+  # LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a rstudio
+  # LD_LIBRARY_PATH=`/usr/libexec/java_home`/jre/lib/server open -a R
 
-# sudo ln -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib
+     # sudo ln -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib
 
 #R
-if (Sys.info()['sysname'] == 'Darwin') {
-  libjvm <- paste0(system2('/usr/libexec/java_home',stdout = TRUE)[1],'/jre/lib/server/libjvm.dylib')
-  message (paste0('Load libjvm.dylib from: ',libjvm))
-  dyn.load(libjvm)
-} 
-library(rJava, lib.loc="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #store in same location as other packages
+#if (Sys.info()['sysname'] == 'Darwin') {
+#  libjvm <- paste0(system2('/usr/libexec/java_home',stdout = TRUE)[1],'/jre/lib/server/libjvm.dylib')
+#  message (paste0('Load libjvm.dylib from: ',libjvm))
+#  dyn.load(libjvm)
+#} 
+#library(rJava, lib.loc="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #store in same location as other packages
 #install.packages("glmulti", lib="/Library/Frameworks/R.framework/Versions/3.6/Resources/library") #no need to run every time
-library(glmulti)

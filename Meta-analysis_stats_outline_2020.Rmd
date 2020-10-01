@@ -5,7 +5,7 @@ date: "1/13/2020"
 output: word_document
 ---
 
-Updated: 20200720 EJF
+Updated: 20200930 EJF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
@@ -24,6 +24,21 @@ covariate = length of study (months)??
 WORKING ON:
 1. bin by depths and run regression
 
+2020.09.30 Meta-analysis To Do list:
+1. create moderator for total N input (fert+amend N) 
+      => DONE variable TN.added
+2. check studies pH > 7.5 (OC reported or just TC?) / other studies can use TC/OC, but check for differences in dataset TC and OC means 
+      => RESPONSE: studies w pH >7.5 that report TC also have SOC = SOC is used
+
+3. Calculate response parameters: OC, POMC, MAOM_C, POM_N, MAOM_N, TN, yield
+      =>
+4. New response parameter?: Calc new response ratio Amend C/SOC (% C added) / Treatment SOC?? 
+      => DONE - very high values
+5. Response ratio graphs for each of these parameters (7) x 3 ( ALL (fertilized controls used if an option), zero controls, fertilized controls) 
+    1. Print the response ratio on the graphs
+6. Create Table 1: amendment name - C,N, application rate (min, median, mean, max) >>>> RESPONSE: box plot complete
+7. Start powerpoint: put in distribution of studies: locations, histograms showing ranges of parameters => overall distribution of moderators >>> DONE! 
+
 
 recheck assumptions of regression - will a meta-regression be possible with this dataset??
   
@@ -41,7 +56,7 @@ Which moderators best explain the variance? Qw and Qb calculations (how do I get
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 STATS QUESTIONS:
 a. Is the effect different from zero? (are there outliers of effect sizes?)
-      -YES, bootrapped mean effect sizes for the global meta-analysis are diffferent from zeo - both with zero control and fertlizer control (positive effect)
+      -YES, bootrapped mean effect sizes for the global meta-analysis are diffferent from zero - both with zero control and fertlizer control (positive effect)
 b. Examine degree of heterogeneity of effect sizes
         -Account for between study varition (2nd source of heterogeneity)
         -USE either Qt, or I2 is more accurate between meta-analysis comparison
@@ -280,3 +295,9 @@ all.rma.ar.nowt <- rma.mv(data=df.c, ratio_all ~ 1, random= ~depth|ACC, method="
 ################################################################################
 ################################################################################
 
+#min, median, mean, max
+my.amend<-df$amend_group
+df %>% group_by(amend_group) %>% summarise(my.n = n()) -> my.n
+
+#df %>%  group_by(amend_group) %>%  summarize(min = min(amend_N_kg.ha, na.rm=T), mean = mean(amend_N_kg.ha, na.rm=T), max = max(amend_N_kg.ha, na.rm=T) ) -> my.Nrate
+#df %>%  group_by(amend_group) %>%  summarize(min = min(C.rate_Mg.ha), mean = mean(C.rate_Mg.ha), max = max(C.rate_Mg.ha) ) -> my.Crate
