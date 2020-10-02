@@ -5,7 +5,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Updated: 20200930 EF
+Updated: 20201001 EJF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
@@ -51,7 +51,7 @@ length(unique(df1$ACC))
 length(unique(df1$country))
 df1$X_a<-as.numeric(df1$X_a); df1$X_cf<-as.numeric(df1$X_cf); df1$X_cmin<-as.numeric(df1$X_cmin)
 names(df1)
-
+library(dplyr)
 #calculate a few new reponse variables to test: (1) combine N input variable (amendment + fertilizer) (2) Calculate percent carbon added = the SOC from the treatment Amend C/SOC (% C added) = Treatment SOC?? 
 TN.added<-df$Nfert_rate+df$amend_N_kg.ha
 SOC_initial_Mg.ha<- (df$SOC_g.kg /1000) * df$BD *     (df$depth.end-df$depth.start) *
@@ -311,6 +311,9 @@ mean(df.c$ratio_zf, na.rm=TRUE) #higher ratio with zero-fertilizer on controls
 #many data types are extracted, select soil carbon as the initial response parameter
  #subgroups will be used to addresss questions about stability
 param<- unique( df.r[order(df.r$param), ]$param ); param
+  #create loop for number of observations
+   df.r[which(df.r$param=="SOC"), ]$At
+
 write.csv(param, "Ometa_parameters.csv")
   df.r[which(df.r$param=="SOC"|df.r$param=="C"), ]$ACC %>% unique() %>% length() #SOC = 49
   
@@ -329,9 +332,11 @@ df.r[which(df.r$param=="SOC"), ]$ACC %>% unique() %>% length() #ALL DATA->>SOC A
       length( which(df.r$param_group=="N") ) #ALL DATA->> N group ACC = 790 obs 
       
 #response variables for the df.test data: OC, POMC, MAOM_C, POM_N, MAOM_N, TN, yield
-df.n<-df.r[which(df.r$param =="N"), ]; length(df.n) ; unique(df.n$param)
+    df.c
+df.n  <-df.r[which(df.r$param =="N"), ]; length(df.n) ; unique(df.n$param)
    #df.n<-df.r[which(grepl("N", df.r$param)), ]; length(df.n) ; unique(df.n$param)
-df.POM<-subset(df.r, param == "POM" |param == "LF"|param == "C_POM" ); length(unique(df.POM$At)); length(unique(df.POM$ACC))
+df.POM  <-subset(df.r, param == "POM" |param == "LF"|param == "C_POM" ); length(unique(df.POM$At)); 
+    #length(unique(df.POM$ACC))
     #df.POM<-df.r[which(grepl("POM", df.r$param)), ]; length(df.POM) ; unique(df.POM$param)
 #df.MAOM<-subset(df.r, param == "MAOM" |param == "SOC_s+c"| param == "C_MAOM" ); length(unique(df.MAOM$At)); length(unique(df.MAOM$ACC))
     df.MAOM<-df.r[which(grepl("MAOM", df.r$param)), ]; length(df.MAOM) ; unique(df.MAOM$param)
@@ -347,7 +352,7 @@ df.names<-c("df.c", "df.n", "df.POM", "df.MAOM", "df.yield")
 
 #choose a parameter to test (df.c, df.n, df. )
 df.names #list all dataframe names
-df.p<-df.c
+df.p<-df.MAOM
 
 #create subset data frames by depth increment -> categorize based on mean of dpeth increment - note that original df.r which has RR's and %change calcs
 df15<-subset(df.p, depth <= 15); nrow(df15) #subset by depth 0-15
@@ -376,34 +381,41 @@ qqnorm(all); qqline(all)
 
 mean(na.omit(dft$ratio_all))#average RR for 0-15 depth .18
 
-#quick test of subsetted data using model from below
+#quick test of subsets data using model from below
   names(dft)
   
-rma.all <- rma.mv(ratio_all, V=SD_all, 
+rma.all1 <- rma.mv(ratio_all, V=SD_all, 
              mods = ~ amend, random= ~1|ACC,
-            data=dft, W=w_all, method="ML"); rma.all #only including
+            data=dft, W=w_all, method="ML"); rma.all1 #only including
+  shapiro.test(resid(rma.all));
   
-rma.all <- rma.mv(ratio_all, V=SD_all, 
+  
+rma.all2 <- rma.mv(ratio_all, V=SD_all, 
              mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
                   C.rate_Mg.ha+ TN.added, random= ~1|ACC,
-            data=dft, W=w_all, method="ML"); rma.all #only including
-
+            data=dft, W=w_all, method="ML"); rma.all2 #only including
+   shapiro.test(resid(rma.all2))
+  qqnorm(resid(rma.all2)); qqline(resid(rma.all2))
+ 
 rma.cf <- rma.mv(ratio_cf, V=SD_cf, 
              mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
                   C.rate_Mg.ha+ TN.added, random= ~1|ACC,
             data=dft, W=w_cf, method="ML"); rma.cf #only including
 
+dft$w_zf
 rma.zf <- rma.mv(ratio_zf, V=SD_zf, 
              mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
                   C.rate_Mg.ha+ TN.added, random= ~1|ACC,
             data=dft, W=w_zf, method="ML"); rma.zf #only including
 
 
-
 length(unique(df.c[which(df.c$amend=="manure"), ]$ACC))
 unique(df.c[which(df.c$amend=="residue"), ]$C.rate_Mg.ha)
 
 length(unique(df.c$ACC))
+
+
+
 
 
 

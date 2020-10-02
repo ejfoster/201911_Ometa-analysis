@@ -5,7 +5,7 @@ date: "1/13/2020"
 output: word_document
 ---
 
-Updated: 20200930 EJF
+Updated: 20201001 EJF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GOAL: 
 Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
@@ -31,7 +31,7 @@ WORKING ON:
       => RESPONSE: studies w pH >7.5 that report TC also have SOC = SOC is used
 
 3. Calculate response parameters: OC, POMC, MAOM_C, POM_N, MAOM_N, TN, yield
-      =>
+      => return to this
 4. New response parameter?: Calc new response ratio Amend C/SOC (% C added) / Treatment SOC?? 
       => DONE - very high values
 5. Response ratio graphs for each of these parameters (7) x 3 ( ALL (fertilized controls used if an option), zero controls, fertilized controls) 
