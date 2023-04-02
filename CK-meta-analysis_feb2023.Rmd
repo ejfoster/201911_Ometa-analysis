@@ -1,0 +1,1347 @@
+---
+title: "Ometa_Organic_Amendment_Meta_Analysis"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+Updated: 20230325 CAK
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GOAL: 
+Meta-analysis on soil organic amendment impact on soil carbon pools > 20cm in depth
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+##Courtland
+Current task:
+- new way to calc SD from SE - Erika's code was wrong
+-calculate CV's and apply to observations means to impute SD
+-use separate CV's for each parameter subset to improve estimate
+i.e. cmin_POC has specific CV used to impute SD for that dataset
+
+
+Current progress
+- 798 observations
+- calculated lnRR and variance with metafor package function 'escalc'
+-subset complete observations by parameter (TOC, MAOC, POC) and control (cmin, cf)
+- total complete obs:
+MAOC.cmin = 24
+POC.cmin = 23
+TOC.cmin = 53
+
+MAOC.cf = 30
+POC.cf = 51
+TOC.cf = 91
+
+###Setup
+```{r prep courtland}
+
+#libraries
+#library(googlesheets4) # to download spreadsheet from google sheets
+library(readxl)
+library(metafor)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+```
+###Import
+```{r import}
+#data import and processing
+
+
+#from local
+df <- read_excel("database_download_3.24.2023.xlsx", sheet = "DATA_3.2.2023", range = "B2:EG1904", na= c("na"))
+
+#pull out only the important variables for analysis
+
+
+##remove variables with "0" for include
+df <- subset(df, include.param == 1)
+#keep only soil carbon fraction data
+df <- subset(df, param == "TOC" | param == "MAOC" | param == "POC")
+
+#make all parameters numeric
+df$X_a<-as.numeric(df$X_a); df$X_cf<-as.numeric(df$X_cf); df$X_cmin<-as.numeric(df$X_cmin)
+#names(df)
+
+
+#make df of unique ACC-treatment combos
+df<-tidyr::unite(df, At, c(ACC, trt_name), sep = "_", remove = FALSE, na.rm = FALSE) # create column of ACC + trt name (ie how many treatments per study = At variable)
+df$ACC<-as.factor(df$ACC)
+length(unique(df$At)) #number of unique treatment comparisons
+length(unique(df$country))
+length(unique(df$ACC))
+
+```
+
+### Errors setup
+1. use SE and N to calculate SD where available
+2. calculate coefficient of variation (CV) for all complete observations (i.e. with SD) for amendment, cmin, and cf data for SOC, MAOC, and POC separately
+3. Use group-specific CV's to impute SD of missing data within each group
+  * Note that could argue that we should do this method because so many missing variance estimates, but this approach allows us to use the error that is present, and use traditional MA methods, unlike bootstrapping
+
+```{r errors setup}
+
+#In this section: 
+#1) calculate SD from SE where available
+#2) impute SD for missing obs using global coefficient of variance
+#3) Calculate n-based variance alternative
+
+### 1 ##### 
+#Used SE and n to calculate SD and fill - create new variables StDev_a, StDev_cmin, StDev_cf
+
+#
+df$StDev_a <- df$SD_a #fill columns with present values
+na.vals <- which(is.na(df$SD_a))#make list of row numbers with NA
+
+df <- transform(df,StDev_a=replace(StDev_a,na.vals,                             SE_a[na.vals]*sqrt(N_a[na.vals])))
+
+nans <- which(is.na(df$StDev_a)) #400
+
+#repeat for SD_cmin
+df$StDev_cmin <- df$SD_cmin #make and fill columns with present values
+na.vals <- which(is.na(df$SD_cmin))#make list of row numbers with NA
+
+df <- transform(df,StDev_cmin=replace(StDev_cmin,na.vals,                             SE_cmin[na.vals]*sqrt(N_cmin[na.vals])))
+
+#repeat for SD_cf
+df$StDev_cf <- df$SD_cf #make and fill columns with present values
+na.vals <- which(is.na(df$SD_cf))#make list of row numbers with NA
+
+df <- transform(df,StDev_cf=replace(StDev_cf,na.vals,                             SE_cf[na.vals]*sqrt(N_cf[na.vals])))
+
+### 2 ####
+
+#Impute errors for missing SD - for cmin and cf separately and for each parameter separately (SOC, MAOC, POC)
+
+#step 1: estimate global coefficient of variance (SD/mean) for estimates with variance
+
+#1. subset complete observations
+c.min.complete <- df %>% drop_na(StDev_cmin)
+cf.complete <- df %>% drop_na(StDev_cf)
+
+#find rows with NA StDev_a
+nans <- c.min.complete[!complete.cases(c.min.complete$StDev_a), ]
+nans <- cf.complete[!complete.cases(cf.complete$StDev_a), ]
+
+#2. calc CV of individual study (i.e. using SD and X) for each complete observation
+
+c.min.complete$cv_c <- c.min.complete$StDev_cmin/(c.min.complete$X_cmin)
+c.min.complete$cv_a <- c.min.complete$StDev_a/(c.min.complete$X_a)
+
+
+cf.complete$cv_c <- cf.complete$StDev_cf/abs(cf.complete$X_cf)
+cf.complete$cv_a <- cf.complete$StDev_a/abs(cf.complete$X_a)
+
+# #count NA's
+# length(which(is.na(cf.complete$cv_a)))#number of na's 
+# 
+# #find rows with NA
+# nans <- c.min.complete[!complete.cases(c.min.complete$cv_a), ]
+
+
+### Subset parameters - fraction and control
+TOC.cmin <- subset(c.min.complete, param == "TOC")
+MAOC.cmin<- subset(c.min.complete, param == "MAOC")
+POC.cmin<- subset(c.min.complete, param == "POC")
+
+TOC.cf <- subset(cf.complete, param == "TOC")
+MAOC.cf<- subset(cf.complete, param == "MAOC")
+POC.cf<- subset(cf.complete, param == "POC")
+
+#calculate mean cv for each parameter group separately. 
+
+a.cv.toc <- mean(TOC.cf$cv_a)
+a.cv.maoc <- mean(MAOC.cf$cv_a)
+a.cv.poc <- mean(POC.cf$cv_a)
+cf.cv.toc <- mean(TOC.cf$cv_c, na.rm = T)
+cf.cv.maoc <- mean(MAOC.cf$cv_c, na.rm = T)
+cf.cv.poc <- mean(POC.cf$cv_c, na.rm = T)
+cmin.cv.toc <- mean(TOC.cmin$cv_c, na.rm = T)
+cmin.cv.maoc <- mean(MAOC.cmin$cv_c, na.rm = T)
+cmin.cv.poc <- mean(POC.cmin$cv_c, na.rm = T)
+```
+### Error impute
+```{r impute}
+#Impute SD for all the missing SD's by multiplying the mean value by the group-level CV (mean * CV = SD)
+nans <- df[!complete.cases(df$StDev_a), ]#count of values before imputation
+length(which(is.na(df$StDev_a) & df$param == "TOC"))
+
+#1 Amendment SD
+#TOC
+na.vals <- which(is.na(df$StDev_a) & df$param=="TOC"); length(na.vals)#make list of row numbers with NA for TOC
+
+
+#impute 
+df <- transform(df,StDev_a=replace(StDev_a,na.vals,                             X_a[na.vals]*a.cv.toc))
+#MAOC
+na.vals <- which(is.na(df$StDev_a) & df$param=="MAOC"); length(na.vals) 
+#impute
+df <- transform(df,StDev_a=replace(StDev_a,na.vals,                             X_a[na.vals]*a.cv.maoc))
+
+#POC
+na.vals <- which(is.na(df$StDev_a) & df$param=="POC");length(na.vals)#make list of row numbers with NA 
+
+#impute SD for TOC values
+df <- transform(df,StDev_a=replace(StDev_a,na.vals,                             X_a[na.vals]*a.cv.poc))
+
+#2 Cmin SD
+#TOC
+na.vals <- which(is.na(df$StDev_cmin) & df$param=="TOC");length(na.vals)#make list of row numbers with NA for TOC
+
+
+#impute 
+df <- transform(df,StDev_cmin=replace(StDev_cmin,na.vals,                             X_cmin[na.vals]*cmin.cv.toc))
+#MAOC
+na.vals <- which(is.na(df$StDev_cmin) & df$param=="MAOC");length(na.vals)#make list of row numbers with NA for TOC
+
+#impute
+df <- transform(df,StDev_cmin=replace(StDev_cmin,na.vals,                             X_cmin[na.vals]*cmin.cv.maoc))
+#POC
+na.vals <- which(is.na(df$StDev_cmin) & df$param=="POC")#make list of row numbers with NA for TOC
+
+#impute SD for TOC values
+df <- transform(df,StDev_cmin=replace(StDev_cmin,na.vals,                             X_cmin[na.vals]*cmin.cv.poc))
+
+#3 cf SD
+#find missing values
+#TOC
+na.vals <- which(is.na(df$StDev_cf) & df$param=="TOC");length(na.vals)#make list of row numbers with NA for TOC
+
+#impute 
+df <- transform(df,StDev_cf=replace(StDev_cf,na.vals,                             X_cf[na.vals]*cf.cv.toc))
+#MAOC
+na.vals <- which(is.na(df$StDev_cf) & df$param=="MAOC");length(na.vals)#make list of row numbers with NA for TOC
+
+#impute
+df <- transform(df,StDev_cf=replace(StDev_cf,na.vals,                             X_cf[na.vals]*cf.cv.maoc))
+#POC
+na.vals <- which(is.na(df$StDev_cf) & df$param=="POC");length(na.vals)#make list of row numbers with NA
+
+#impute SD 
+df <- transform(df,StDev_cf=replace(StDev_cf,na.vals,                             X_cf[na.vals]*cf.cv.poc))
+
+
+#are there any remining missing SD values?
+
+length(which(is.na(df$StDev_a))) #good
+length(which(is.na(df$StDev_cmin)))#makes sense since many have only cf
+length(which(is.na(df$StDev_cf)))
+
+nans <- df[!complete.cases(df$StDev_a), ]
+
+
+```
+### Response Ratios
+Complete
+```{r, response ratios}
+# Calculate response ratios for cf and cmin
+library(metafor)
+#calculate response ratio for each observation:
+
+#use metafor to calculate the logRR and variance for each observation (with error reported)
+#yi = lnRR, vi = variance of RR
+RR.cmin <- escalc(n1i = N_a, n2i = N_cmin, m1i = X_a, m2i = X_cmin, 
+    sd1i = StDev_a, sd2i = StDev_cmin, data = df, measure = "ROM", 
+    append = F)
+
+#change col names
+colnames(RR.cmin) <- c("yi_cmin", "vi_cmin")
+
+hist(RR.cmin$yi_cmin)
+#check against manual calcs
+ratio_cmin<-log(df$X_a/df$X_cmin)
+hist(ratio_cmin) #looks identical - GOOD
+
+RR.cf <- escalc(n1i = N_a, n2i = N_cf, m1i = X_a, m2i = X_cf, 
+    sd1i = StDev_a, sd2i = StDev_cf, data = df, measure = "ROM", 
+    append = F)
+#change col names
+colnames(RR.cf) <- c("yi_cf", "vi_cf")
+
+hist(RR.cf$yi_cf)
+
+#doing manually
+ratio_cf<-log(df$X_a/df$X_cf)
+hist(ratio_cf)
+
+
+#Add RR and var to beginning of dataframe
+
+df <- cbind(RR.cmin, RR.cf, df)
+
+
+
+#check number of Na's and location
+nan.check<-df[which(is.na(df$yi_cmin)), ]; names(nan.check)
+nan.check<-df[which(is.na(df$yi_cf)), ]; names(nan.check)
+
+#add percent change variable
+df$perc.chng_cmin <- (exp(df$yi_cmin) -1)*100
+df$perc.chng_cf <- (exp(df$yi_cf) -1)*100
+
+# 
+# ###doing RR by hand - get same numbers
+# ratio_cmin<-log(df$X_a/df$X_cmin)
+#    nan.check<-df[which(is.nan(ratio_cmin)), ]; names(nan.check) 
+# #Convert RR to percent change
+# percent.change.cmin<-(exp(ratio_cmin) -1)*100 #mean % change = (e^ln(rr)-1)*100
+#     
+# ratio_cf<-log(df$X_a/df$X_cf)
+# percent.change.cf<-(exp(ratio_cf)-1)*100 
+# 
+# #compare escale and manual 
+# 
+# #add ratios to df
+# df<-cbind(df, ratio_cmin, percent.change.cmin, ratio_cf, percent.change.cf) #update df with response ratios
+# 
+# 
+# 
+# 
+# #subset by zero or fertilized controls
+# #remove rows with NA for response ratio - as these obvs cannot be analyzed
+# df.cf<-df[which(!is.na(df$ratio_cf)),]  
+# df.cmin<-df[which(!is.na(df$ratio_cmin)),]
+```
+
+
+### Initial plots
+
+```{r, initial plots}
+### 3. INITIAL PLOTS
+###
+############################################################################
+
+#make list of unique treatments for plotting
+df.unique <- df %>% distinct(At, .keep_all = T) 
+
+length(df.unique$country)
+yr.expt <- df.unique$exp_duration_mos/12
+min(yr.expt)
+max(yr.expt)
+median(yr.expt)
+
+#summary plots
+
+#countries represented
+ggplot(data=df.unique, aes(x=country)) +
+geom_bar() +
+geom_text(stat='count', aes(label=..count..), vjust=-1) + ylim(0, 24)
+
+  
+plot(df$depth.end)
+plot(as.factor(df$param_group), main="Parameters - Reponse Variables")
+plot(as.factor(df$tillage_type), main = "Tillage Groups")
+plot(as.factor(df$crop_group), main= "Crop Types")
+plot(as.factor(df$crop_system))
+hist(df$lat.dec.degree, main= "Latitude")
+     hist(df$elevation, main= "Elevation", xlab="Elevation (m)")
+     plot(df$MAP, df$MAT)
+     #hist(df$year.zero, main="First Year of Study", xlab="Year")
+     hist(df$exp_duration_mos, main="Study Length", xlab="Months of Experiment")
+      plot(as.factor(df$duration_even), main="First Year of Study", xlab="Year")
+     hist(df$MAP, main="Precipitation", xlab="MAP (mm)")
+      hist(df$MAT, main="Temperature", xlab="MAT (degrees C)")
+hist(df$clay, main="Percent Clay", xlab="Clay (%)")
+
+plot(as.factor(df$duration_group), main="Study Duration", xlab= "Years")
+  #  plot(df$irrigation_group, main ="Cateogry of Irrigation")
+   plot(as.factor(df$till_depth_group), main ="Tillage depths")
+   hist(df$pH, xlab="pH")  
+   plot(as.factor(df$SOC_int_group), main="Initial SOC", xlab="SOC g/kg")
+
+   
+#organic amendment C,N, application rate (min, median, mean, max)
+plot(as.factor(df$amend), las=3, cex.names=.5)
+plot(as.factor(df$amend_group_brd), las=3, cex.names=.5)
+ggplot(data=df.unique, aes(x=amend_group_brd)) +
+geom_bar() + ylim(0,40) +
+geom_text(stat='count', aes(label=..count..), vjust=-1)
+
+#percent manure
+33/64
+#percent residue
+28/64
+
+
+
+plot(df$weight.dry)
+plot(as.factor(df$C.rate_group))
+hist(df$C.rate_Mg.ha)
+hist(df$C.N_rate)
+hist(df$amend_N_kg.ha)
+boxplot(df$TN.added~df$ACC)
+boxplot(df$TN.added~df$amend_group)
+
+boxplot(df$C.rate_Mg.ha~df$amend_group)
+boxplot(df$amend_N_kg.ha~df$amend_group)
+boxplot(df$C.N_rate~df$amend_group)
+boxplot(df$ratio_SOC.amend)
+
+(df$param)
+
+
+#############################################################################
+###
+```
+
+
+## Erika Original Code
+```{r, response ratios}
+### 4. RESPONSE RATIOS, weights of ratios, % change
+###
+#current dataframess = df and df.r 
+#calculate SD from SE= SD/ sqrt(n)  => SE*sqrt(n)
+
+#if the value is Na, replace with SD calculated from SE
+SD.to.replace<-which(is.na(df$SD_a)); length(SD.to.replace) #of 751 obs
+length(which(is.na(df$SE_a)))#number of na's
+
+df$StDev_a<-df$SD_a
+df$StDev_a<-ifelse(is.na(df$StDev_a),  #if SD = NA
+         df[SD.to.replace ,]$SE_a * sqrt(df[SD.to.replace, ]$N_a), #replace with SE * sqrt of n
+       df$StDev_a)
+#remeasure the # of studies missing SD
+length(which(is.na(df$StDev_a)))
+
+#calculate the weight of each study based off of observation numbers (Hedges and Olkin 1985)
+#According to Handbook, this is a good method if study variances are not reported
+#but, if we impute SD, then can use the radom effects approach (handbook ch13
+#HOwever, Handbook p 205 notes that if most of the studies do not report SD, it may be better to use a non-parametric approach)
+
+###original code 
+  #df$w_cf<-(df$N_a*df$N_cf)/(df$N_a+df$N_cf) #not weights
+  #df$w_cmin<-(df$N_a*df$N_cmin)/(df$N_a+df$N_cmin) #not weights
+
+  df$var.lnRR_cf<-(df$N_a*df$N_cf)/(df$N_a+df$N_cf)
+  df$var.lnRR_cmin<-(df$N_a*df$N_cmin)/(df$N_a+df$N_cmin)
+
+#handbook p. 205 recommends pairing the lnRR and ^ variance estimatation method with bootstrapping   
+  
+which(is.na(df$N_a))
+which(is.na(df$N_cmin))
+which(is.na(df$N_a))
+which(is.na(df$N_cmin))
+
+## Note that above calculations are actually for the variance of the log(RR) 
+  
+#calculate response ratio for each observation:
+ratio_cmin<-log(df$X_a/df$X_cmin)
+   nan.check<-df[which(is.nan(ratio_cmin)), ]; names(nan.check) 
+#Convert RR to percent change
+percent.change.cmin<-(exp(ratio_cmin) -1)*100 #mean % change = (e^ln(rr)-1)*100
+    
+ratio_cf<-log(df$X_a/df$X_cf)
+percent.change.cf<-(exp(ratio_cf)-1)*100 
+
+#create new df.r with ratios calculated for each obs
+df.r<-cbind(df, ratio_cmin, percent.change.cmin, ratio_cf, percent.change.cf) #create df with response ratios
+
+
+
+#remove NA response ratios
+#df.r:  which factors have NAs?
+which(is.na(df.r$MAT))
+which(is.na(df.r$MAP))
+length(df.r$ACC)
+
+
+#subset by zero or fertilized controls
+#remove rows with NA for response ratio - as these obvs cannot be analyzed
+df.cf<-df.r[which(!is.na(df.r$ratio_cf)),]  
+df.cmin<-df.r[which(!is.na(df.r$ratio_cmin)),]
+
+##########################################################################################################
+###
+```
+
+```{r error impute}
+### 5. IMPUTE ERROR
+
+#impute error over all depths/amendments 
+
+str(df.r) #4075 obs
+#estimate ratio to impute error for amend trt / cf control / zf control
+est.SD.a<-sum(df.r$SD_a, na.rm=T)/sum(df.r$X_a,na.rm=T)
+est.SD.cf<-sum(df.r$SD_cf, na.rm=T)/sum(df.r$X_cf, na.rm=T)
+est.SD.zf<-sum(df.r$SD_zf, na.rm=T)/sum(df.r$X_zf, na.rm=T)
+
+#ratio of SD/X (est.XXX) * mean to impute error (FYI, must use is.na not df.r$X=="NA" (won't return a TRUE, just na and ifelse doesn't work))
+df.r$SD_a_imp<-ifelse(is.na(df.r$SD_a), yes=df.r$X_a*est.SD.a, no=df.r$SD_a)
+df.r$SD_cf_imp<-ifelse(is.na(df.r$SD_cf), df.r$X_cf*est.SD.cf, df.r$SD_cf)
+df.r$SD_zf_imp<-ifelse(is.na(df.r$SD_zf), df.r$X_zf*est.SD.zf, df.r$SD_zf)
+
+#amendment errors reported
+error.amend<-(1-length(which(is.na(df.r$StDev_a)))/nrow(df.r))*100; error.amend #30% have error reported, for SOC 36% have error reported
+
+#impute error via regression S = alpha +beta(n)
+  lm(df.r$SD_cf ~ df.r$N_cf, na.action=na.omit) #cf intercept/alpha= 26.430 m/beta= -6.166
+ lm(df.r$SD_zf ~ df.r$N_zf, na.action=na.omit) #zf intercept/alpha= 12.210 m/beta= -2.461 
+  lm(df.r$SD_a ~ df.r$N_a, na.action=na.omit) #a intercept/alpha= 25.731 and m/beta=-5.496
+
+#regression to impute error save as new column
+df.r$SD_cf_reg<-ifelse(is.na(df.r$SD_cf), 26.430-6.166*(df.r$N_cf), df.r$SD_cf)
+df.r$SD_zf_reg<-ifelse(is.na(df.r$SD_zf), 12.210-2.461*(df.r$N_zf), df.r$SD_zf)
+df.r$SD_a_reg<-ifelse(is.na(df.r$SD_a), 25.731-5.496*(df.r$N_a), df.r$SD_a)
+
+### create column of response ratios with fertilized controls as main effects, and only use zero controls when other option not possible
+#dataframes with non NAs for fert and zero controls = mydf.fert; mydf.zf and combined
+str(df.r)
+mydf.cf$ratio_comb<-mydf.cf$ratio_cf
+mydf.zf$ratio_comb<-mydf.zf$ratio_zf
+mydf.cf$SD_all<-mydf.cf$SD_cf_imp
+mydf.zf$SD_all<-mydf.zf$SD_zf_imp
+mydf.cf$w_all<-mydf.cf$w_cf
+mydf.zf$w_all<-mydf.zf$w_zf 
+
+names(df.r)
+#to combine datasets - use fertilized controls when possible= had a lower effect size (will not overestimate the effect?)
+#left outer join into the df.r dataframe
+ df.r$ratio_all<-ifelse(is.na(df.r$ratio_cf),  df.r$ratio_zf, df.r$ratio_cf)
+  df.r$SD_all<-ifelse(is.na(df.r$ratio_cf), df.r$SD_zf_imp, df.r$SD_cf_imp) #imputed std deviations
+  df.r$w_all<-ifelse(is.na(df.r$ratio_cf), df.r$w_zf, df.r$w_cf)
+df.r$control.type<-ifelse(is.na(df.r$ratio_cf), "zf", "cf")
+
+#where are the outliers? for ratio.zf and ratio.cf
+#mean.ratio<- df.r %>%
+#  group_by(ACC) %>%
+#  summarise(mean.f = mean(ratio_cf),
+#            mean.zf = mean(ratio_zf), n= n()); mean.ratio
+
+#mean.ratio<- df.r %>%
+#  group_by(ACC) %>%
+#summarise_all(funs(mean, n), na.rm = TRUE); mean.ratio
+
+# create depth sub grrups
+#create one depth variable, mean of depth start and stop
+df.r$depth<-(df.r$depth.end+df.r$depth.start)/2 
+mean(df.r$depth, na.rm=T)
+sd(df.r$depth, na.rm=T)
+max(df.r$depth, na.rm=T)
+
+##########################################################################################################
+###
+```
+
+```{r, C stock calcs}
+### 5. Subset and CALCULATE SOIL CARBON STOCKS
+###
+
+df.c<-subset(df.r, param == "SOC" ); str(df.c) #subset by carbon parameters only
+
+#calculate carbon stocks from g.kg  (g.kg/1000)*BD*(depth.end-depth.start) = g/cm2
+# Convert to t/ha => g/cm2 * (1Mg/ 1,000,000g)*(1*10^8cm2/ha) = 100
+   #(1/1000000)*(1*10^8/1) 
+## Note from CK re: stock conversation: many studies did not report change in BD btw treatments, so stock change is just a multiple of % change or other measurement; may not be correct to report since we would assume BD should change with ammendment addition. 
+df.c$X_a_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$X_zf_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_zf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_zf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$X_cf_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$X_cf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$X_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+  
+#convert error to metric t/ha (or Mg/ha)
+df.c$SD_a_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_a/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_a/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$SD_zf_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_zf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_zf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+df.c$SD_cf_stock<-ifelse(df.c$units == "g.kg", 
+                       df.c$SD_cf/1000 * df.c$BD * (df.c$depth.end-df.c$depth.start) * 100, 
+                       df.c$SD_cf/1000) #else divides the kg/ha by 1000 to get Mg/ha
+
+mean(df.c$ratio_cf, na.rm=TRUE); 
+mean(df.c$ratio_zf, na.rm=TRUE) #higher ratio with zero-fertilizer on controls
+```
+
+```{r C. meta-anlaysis models}
+##########################################################################################################
+###
+### 5. SUBSET RESPONSE VARIABLES
+
+#Create MAOC dataset
+df.MAOC<-subset(df.r, param == "MAOC")
+nrow(df.MAOC)
+
+#Create POC dataset
+df.POC<-subset(df.r, param == "POC")
+nrow(df.POC)
+
+
+#Create TOC dataset
+df.TOC<-subset(df.r, param == "TOC") 
+nrow(df.TOC)
+
+```
+
+```{r depth separation}
+
+#choose a parameter to test (df.c, df.n, df.pom )
+df.names #list all dataframe names
+df.p<-df.MAOC
+
+#create subset data frames by depth increment -> categorize based on mean of dpeth increment - note that original df.r which has RR's and %change calcs
+df15<-subset(df.p, depth.end <= 15); nrow(df15) #subset by depth 0-15
+df30<-subset(df.p, depth.end <= 30 & depth.end > 15); nrow(df30) #subset by depth 15-30cm
+df60<-subset(df.p, depth.end <= 60 & depth.end > 30); nrow(df60) #subset by depth 30-60cm
+df90<-subset(df.p, depth.end <= 90 & depth.end > 60); nrow(df90) #subset by depth 60-90cm
+df91<-subset(df.p, depth.end > 90); nrow(df90) #subset by depth 60-90cm
+
+```
+
+```{r RR summaries}
+##Some average response ratios as percent change
+
+#all parameters, all depths
+
+df.r[sapply(df.r,is.infinite)] <- NA
+
+mean(na.omit(df.r$percent.change.cf))
+mean(na.omit(df.r$percent.change.cmin))
+
+
+#MAOC - all depths
+mean(na.omit(df.MAOC$percent.change.cf))
+mean(na.omit(df.MAOC$percent.change.cmin))
+#POC - all depths
+mean(na.omit(df.POC$percent.change.cf))
+mean(na.omit(df.POC$percent.change.cmin))
+#TOC - all depths
+mean(na.omit(df.TOC$percent.change.cf))
+mean(na.omit(df.TOC$percent.change.cmin))
+
+#note sure I can do this but quick ANOVA...
+
+## Look at %change by pool and depth
+
+#choose a parameter to test (df.c, df.n, df.pom )
+df.p<-df.TOC
+
+#create subset data frames by depth increment -> categorize based on mean of dpeth increment - note that original df.r which has RR's and %change calcs
+df15<-subset(df.p, depth.end <= 15); nrow(df15) #subset by depth 0-15
+df30<-subset(df.p, depth.end <= 30 & depth.end > 15); nrow(df30) #subset by depth 15-30cm
+df60<-subset(df.p, depth.end <= 60 & depth.end > 30); nrow(df60) #subset by depth 30-60cm
+df90<-subset(df.p, depth.end <= 90 & depth.end > 60); nrow(df90) #subset by depth 60-90cm
+df91<-subset(df.p, depth.end > 90); nrow(df90) #subset by depth 60-90cm
+
+mean(na.omit(df15$percent.change.cf))
+mean(na.omit(df15$percent.change.cmin))
+
+mean(na.omit(df30$percent.change.cf))
+mean(na.omit(df30$percent.change.cmin))
+
+mean(na.omit(df60$percent.change.cf))
+mean(na.omit(df60$percent.change.cmin))
+
+mean(na.omit(df90$percent.change.cf))
+mean(na.omit(df90$percent.change.cmin))
+
+
+
+#############
+#choose a depth to check
+depth.dfs<-rbind(15,30,60,90, 91)
+depth.trt.number<-rbind(length(unique(df15$At)), length(unique(df30$At)),
+                        length(unique(df60$At)),  length(unique(df90$At)),
+                        length(unique(df91$At)))
+cbind(depth.dfs, depth.trt.number)
+#############
+
+dft<-df15
+#check normality of ratio distribution 
+f<-dft$ratio_cf; z<-dft$ratio_zf; all<-(dft$ratio_all ) 
+# f<-log(dft$ratio_cf+1);  z<-log(dft$ratio_zf+1);all<-log(dft$ratio_all+1)
+
+
+hist(f); hist(z); hist(all)
+qqnorm(f);qqline(f) #1 outlier 
+qqnorm(z);qqline(z)
+qqnorm(all); qqline(all)
+#dft$ratio_all[dft$ratio_all >1.9] <-"NA"; dft$ratio_all<-as.numeric(dft$ratio_all) #make ratio_all numeric, after adding the NA
+
+## Some quick stats/analysis with subgroups created
+#average RR in each subgroup
+
+mean(na.omit(dft$ratio_all))#average RR for 0-15 depth .18
+
+#quick test of subsets data using model from below
+  names(dft)
+  
+rma.all1 <- rma.mv(ratio_all, V=SD_all, 
+             mods = ~ amend, random= ~1|ACC,
+            data=dft, W=w_all, method="ML"); rma.all1 #only including
+  shapiro.test(resid(rma.all));
+  
+  
+rma.all2 <- rma.mv(ratio_all, V=SD_all, 
+             mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha + TN.added, random= ~1|ACC,
+            data=dft, W=w_all, method="ML"); rma.all2 #only including
+   shapiro.test(resid(rma.all2))
+  qqnorm(resid(rma.all2)); qqline(resid(rma.all2))
+ 
+rma.cf <- rma.mv(ratio_cf, V=SD_cf, 
+             mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha+ TN.added, random= ~1|ACC,
+            data=dft, W=w_cf, method="ML"); rma.cf #only including
+
+dft$w_zf
+rma.zf <- rma.mv(ratio_zf, V=SD_zf, 
+             mods = ~ MAT+ MAP+ pH+ clay + SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha+ TN.added, random= ~1|ACC,
+            data=dft, W=w_zf, method="ML"); rma.zf #only including
+
+
+length(unique(df.c[which(df.c$amend=="manure"), ]$ACC))
+unique(df.c[which(df.c$amend=="residue"), ]$C.rate_Mg.ha)
+
+length(unique(df.c$ACC))
+
+
+
+###### Bootstrapping code
+
+#create function to resample with
+boot_mean <- function(df_vector, resample_indices) {
+    mean(df_vector[resample_indices])
+}
+#boot_var <- function(df_vector, resample_indices) {
+#    (sd(df_vector[resample_indices])^2 )
+#}
+set.seed(12345)
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
+
+#########################################
+# 7a. data frame with fertilized controls 
+#########################################
+mean(mydf.cf$ratio_cf) #mean response ratio
+#mean(mydf.cf$ratio_cf)-1 #percent change RR=1 no effect (Kallenbach)
+mean(mydf.cf$percent.change.cf) #percent change (Pressler 2018)
+
+results.cf <- boot(data=mydf.cf$ratio_cf, statistic=boot_mean, R=1000, weights=mydf.cf$w_cf) # dist looks more evenly distriuted around mean without the weights
+                #formula=ratio_cf~depth) #strata=ACC?depth?
+plot(results.cf)
+summary(results.cf) #mean RR = 0.14866
+boot.ci(results.cf) #,type="bca") #significant if do not inclue 1
+ #Pnormale 95%    ( 0.1569,  0.2054 )
+
+str(results.cf)
+results.cf$t0
+#percetn lower or higher than observed mean
+Higher<- length (which( results.cf$t > results.cf$t0) )/length(results.cf$t); Higher
+Lower <-length (which(results.cf$t < results.cf$t0) )/length(results.cf$t); Lower
+meanLrgerData<-results.cf$t0 > results.cf$data
+  ifelse( length(which(meanLrgerData))> .5*length(meanLrgerData), "Need to bias correct", "Great work!")
+str(results.cf)
+#########################################
+# 7b. data frame control zero/minimum inputs
+#########################################
+
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
+ 
+mean(mydf.zf$ratio_zf) # mean RR
+#mean(mydf.zf$ratio_zf)-1 #percent change (Kallenbach 2011)
+mean(mydf.zf$percent.change.zf) #percent change (Pressler 2018)
+
+results.zf <- boot(data=mydf.zf$ratio_zf, statistic=boot_mean, R=1000, weights=mydf.zf$w_zf)
+                #formula=ratio_cf~depth) #strata=ACC?depth?
+plot(results.zf)
+
+boot.ci(results.zf) #, type="bca") #bias corrected?
+summary(results.zf)
+str(results.zf)
+meanLrgerData<-results.zf$t0 > results.zf$data
+  ifelse( length(which(meanLrgerData))> .5*length(meanLrgerData), "Need to bias correct", "Great work!")
+  
+(results.zf) 
+#formula=ratio_cf~depth) #strata=ACC?depth?
+
+
+### PLOTS
+# CF 0.1453869 +/- 0.01262989 
+# ZF 0.2874877 +/- 0.01153189
+
+y1=.25; y2=.75
+#ZF
+plot(0.2874877 , y1 ,ylab="Study type", xlab="Effect Size", xlim=c(-.5,.5), ylim=c(0,1), 
+     pch=16, cex=1, col="white"); abline(v=0)
+arrows(y0=y1, x0=0.2874877- 0.01153189, y1=y1, x1=0.2874877+ 0.01153189, code=3, angle=90, length=.05, col="black") #error bars
+points( 0.2874877, y1, bg="black", pch=21,cex=.75 )
+
+#CF
+points( 0.1453869, y2, bg="black", pch=21,cex=.75 )
+arrows(y0=y2, x0= 0.1453869- 0.01262989, y1=y2, x1=0.1453869+ 0.01262989, code=3, angle=90, length=.05, col="black") #error bars
+ 
+############################################################################################
+###
+### 8. Q = check heterogeneity of studies in meta-analysis
+###
+############################################################################################
+#see pg 109-113 Koricheva 2013 handbook of meta-anaysis for ecology
+#check QT using K against chi-sq distrubtion: https://www.socscistatistics.com/pvalues/chidistribution.aspx
+  #note random effects models should take this QT between study heterogeniety into account, 
+
+### so QT is not a useful statistic for the global meta-analysis with random effects###
+
+#check signficant against the X2 distribution:
+# http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
+
+#mu.hat = sum(w.k*theta.k)/sum(w.k)
+#QT = sum (w.k* (theta.k-mu.hat)^2)
+#I2 = max ((100*( (QT-(K-1))/QT)),0)
+#########################################
+#8a. fertilized controls
+#########################################
+w_cf<-mydf.cf$w_cf 
+theta.cf<-mydf.cf$ratio_cf
+mu.cf <- sum(w_cf*theta.cf)/sum(w_cf) #0.1495921; % change 16.13
+QT.cf <- sum (w_cf* (theta.cf-mu.cf)^2) #not meaningful for random effects models, compare to X2 distrubtion, 50.09 (X2 p-value = .18 , not sig )
+
+K.cf <- length(unique(mydf.cf$ACC)) #42
+I2.cf = max ((100*( (QT.cf-(K.cf-1))/QT.cf)),0)
+#18% of observed variance can be attribted to difference among the studies
+     #rerea 3.18.20 and found 5% explained
+
+ #chisq.test(x = observed(theta.cf), p = expected)
+1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
+1-pchisq(q=I2.cf, df=(K.cf-1))
+
+#########################################
+#8b. zero input controls
+#########################################
+w_zf<-mydf.zf$w_zf 
+theta.zf<-mydf.zf$ratio_zf; hist(theta.zf); shapiro.test(theta.zf)
+mu.zf <- sum(w_zf*theta.zf)/sum(w_zf) #0.2792475; %change 32.21
+QT.zf <- sum (w_zf* (theta.zf-mu.zf)^2) #looked up X2 p-value = 0.2236, not sig
+K.zf <- length(unique(mydf.zf$ACC)) #39
+I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
+#16% of observed variance can be attribted to difference among the studies
+
+#get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
+ 1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
+ 1-pchisq(q=I2.zf, df=(K.zf-1)) #ACC not significant - not sure if this test makes statistical sense, just curious
+ 
+#########################################
+#8c. combined (all) controls
+#########################################
+w.comb<-c(mean(w_cf), mean(w_zf))
+theta.comb<-c(mean(theta.cf), mean(theta.zf))
+mu.comb<-c(mean(mu.cf), mean(mu.zf))
+QT.comb<-sum(QT.cf, QT.zf)
+K.comb <- sum(K.zf, K.cf) #81
+I2.comb = max ((100*( (QT.comb-(K.comb-1))/QT.comb)),0) #16.2% of variance explained by ACC
+ #chisq.test
+ 1-pchisq(q=QT.comb, df=(K.comb-1)) #not significant
+1-pchisq(q=I2.comb, df=(K.comb-1)) #not significant
+```
+
+```{r, C. Graphs + Check regression assumptions and for correlation among parameters}
+####################################################################################################
+###
+### 10. Check 4 assumptions of regression  https://peerj.com/articles/3323/
+### (linearity, normality of error, homoscedasticity - plot resid, independence of error)
+###      (10 assumptions listed here:
+####################################################################################################
+names(df.c)
+
+#continuous: C.rate_Mg.ha, C.N_rate, N.amend_g.kg,ç, Nfert_rate
+   #env continuous: MAT, MAP, MAP/MAT, lat.dec.degree
+    #initial continuous: SOC_g.kg, pH, clay
+
+#factor: At, crop_group, crop_system, irrigated, tillage_type, till_depth_group, Nfert_group, duration_group, duration_even, country,
+# lat_group, clay_group, pH_group, SOC_int_group, amend, amend_group, C.rate_group, amend_N_kg.ha_group
+
+#subgroup analysis???
+levels(df.c$crop_group)
+levels(df.c$crop_system)
+levels(df.c$tillage_type)
+# exp_duration_mos
+
+#set up linear model  #yield? #total amount of C added over the experiment
+rma1 <- rma.mv(ratio_all, V=SD_all, 
+             mods = ~ MAT+ MAP+ pH+ clay+ SOC_g.kg + #latitude.dec.degree + exp_duration_mos + C.N_rate
+                  C.rate_Mg.ha+ amend_N_kg.ha + Nfert_rate, random= ~1|ACC,
+            data=df.c, W=w_all, method="ML"); rma1 #important to use ML (instead of REML) estimation, since log-likelihoods (& hence information criteria) are not directly comparable for models with different fixed effects
+
+names(df.c)
+df.c$pH
+#Erika which factors have NAs
+which(is.na(df.c$MAT))
+which(is.na(df.c$MAP))
+length(unique(df.c[which(is.na(df.c$pH)), ]$ACC)) #many NAs (13 studies)
+length(unique(df.c[which(is.na(df.c$clay)), ]$ACC)) #many NAs
+which(is.na(df.c$SOC_g.kg))  #many NAs
+which(is.na(df.c$C.rate_Mg.ha)) #many NAs
+which(is.na(df.c$amend_N_kg.ha)) #many NAs
+which(is.na(df.c$Nfert_rate)) #many NAs
+
+which(is.na(df.c$pH))
+
+#install.packages("broom")
+library(broom) #testing plots to check assumptions - didn't run with rma output
+ #model.diag.metrics <- augment(rma1); head(model.diag.metrics)
+ 
+#graph residuals
+#ggplot(model.diag.metrics, aes(youtube, sales)) +
+#  geom_point() +
+#  stat_smooth(method = lm, se = FALSE) +
+#  geom_segment(aes(xend = youtube, yend = .fitted), color = "red", size = 0.3)
+
+#########################################
+# 10a. correlation of covariates minimized (multicolinearity)
+#########################################
+param.corr<-select(df, MAT, MAP, lat.dec.degree, elevation, pH, clay, SOC_g.kg,
+                  C.rate_Mg.ha, C.N_rate, amend_N_kg.ha, exp_duration_mos, Nfert_rate)
+param.corr$MAT.MAP<-df$MAT/df$MAP
+names(df.c)
+pear<-rcorr(as.matrix(param.corr), type = "pearson") ; pear
+#CORRELATED: pH and MAT = .98 and MAT/MAP =.65; 
+           #elevation and exp_duration_mos (.97); elevation and MAT.MAP .76,  lat and Nfert.rate .333 + amend_N =.32;
+# !!! remove elevation and MAT !!!
+
+#########################################
+# 10b. test normality of errors
+#########################################
+res1<-residuals(rma1); hist(res1) #residuals normally distributed around 0
+qqnorm(res1); qqline(res1); shapiro.test(res1) #check normality of residuals
+mean(res1, na.rm=T) #check mean of resid = ~0
+
+#########################################
+# 10c. test homoscedasticity of variance
+#########################################
+plot(res1); abline(0,0)
+
+#also see plots in section 11
+
+#########################################
+# 10d. test independence of residuals (autocorrelations)
+#########################################
+acf(res1) #on plot if there is acorrelation = 1, no correlation = 0
+ #cor.test(df$MAP, res1) #reject null, alternative = true correlation not equal 0
+
+```
+
+```{r, 11.  Graphs of response ratios}
+### USING ACC ###
+#########################################
+### 11 - 0  GRAPHS OF RESPONSE RATIOS ie, plot within study variance w/ ACC
+#########################################
+dft<-df30
+y<-dft$ratio_all; length(y)
+length(dft$ACC)
+x<-seq(1,length(levels(dft$ACC)),1) #create sequence of ACC for y axis
+trt<-levels(dft$trt_name)
+
+M = tapply(y,
+           INDEX = dft$ACC,
+           FUN   = mean, na.rm=T)
+
+SD = tapply(y,
+           INDEX = dft$ACC,
+           FUN   = sd, na.rm=T)
+
+length(SD); length(x); length(M)
+
+MA<-mean(dft$ratio_all, na.rm=T)
+SDA<-sd(dft$ratio_all, na.rm=T) 
+plot.new()
+### ALL plot means and sd of each study
+plot(M, x,ylab="ACC", xlab="Effect Size", xlim=c(-1,1), ylim=c(-5,50), 
+     pch=16, cex=.001)
+ abline(v=0); abline(v=MA, lty=2, col="blue", lwd=2)
+
+y_grand.mean<-(-3)
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=y_grand.mean, x0=MA-SDA, y1=y_grand.mean, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") #1150 is the 'pretend' ACC to plot the grand mean
+
+points(M, x,pch=16,cex=.75)
+points(MA, y_grand.mean, col="blue", pch=5,cex=2)
+
+(exp(MA)-1)*100 # % change with amendment
+
+
+
+
+
+#########################################
+### 11a GRAPHS OF RESPONSE RATIOS ie, plot within study variance w/ ACC
+#########################################
+y<-df.c$ratio_all; length(y)
+length(df.c$ACC)
+x<-seq(1,length(levels(df.c$ACC)),1) #create sequence of ACC for y axis
+trt<-levels(df.c$trt_name)
+
+M = tapply(y,
+           INDEX = df.c$ACC,
+           FUN   = mean, na.rm=T)
+
+SD = tapply(y,
+           INDEX = df.c$ACC,
+           FUN   = sd, na.rm=T)
+
+length(SD); length(x); length(M)
+
+MA<-mean(df.c$ratio_all, na.rm=T)
+SDA<-sd(df.c$ratio_all, na.rm=T) 
+plot.new()
+### ALL plot means and sd of each study
+plot(M, x,ylab="ACC", xlab="Effect Size", xlim=c(-1,1), ylim=c(-5,50), 
+     pch=16, cex=.001)
+ abline(v=0); abline(v=MA, lty=2, col="blue", lwd=2)
+
+y_grand.mean<-(-3)
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=y_grand.mean, x0=MA-SDA, y1=y_grand.mean, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") #1150 is the 'pretend' ACC to plot the grand mean
+
+points(M, x,pch=16,cex=.75)
+points(MA, y_grand.mean, col="blue", pch=5,cex=2)
+
+(exp(MA)-1)*100 # % change with amendment
+
+#########################################
+### 11b plot zero controls only w/ ACC
+#########################################
+y<-mydf.zf$ratio_zf
+x<-seq(1,length(levels(mydf.zf$ACC)),1)
+   length(mydf.zf$ACC)
+   length(mydf.zf$ratio_zf)
+M = tapply(y,
+           INDEX = mydf.zf$ACC,
+           FUN   = mean, na.rm=T)
+
+SD = tapply(y,
+           INDEX = mydf.zf$ACC,
+           FUN   = sd, na.rm=T); length(SD); length(x); length(M)
+
+MA<-mean(mydf.zf$ratio_zf, na.rm=T)
+SDA<-sd(mydf.zf$ratio_zf, na.rm=T) 
+
+### ZERO plot means and sd of each study
+plot(M, x,ylab="ACC", xlab="Effect Size",
+       pch=16, cex=.001, xlim=c(-1,1), ylim=(c(0,70)) )
+ abline(v=0); abline(v=MA, lty=2, col="blue", lwd=2)
+
+ y.mean<-65
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=y.mean, x0=MA-SDA, y1=y.mean, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") #1150 is the 'pretend' ACC to plot the grand mean
+
+points(M, x,pch=16,cex=.75)
+points(MA, y.mean, col="blue", pch=5,cex=2)
+
+(exp(MA)-1)*100 # % change with amendment 32% for zero fertilized controls
+
+#########################################
+### 11c plot controls w fertilizer w/ ACC !!! CURRENTLY NOT WORKING - DIFFERENT LENGTH OF X !!!
+#########################################
+y<-mydf.cf$ratio_cf
+x<-x<-seq(1,length(levels(mydf.cf$ACC)),1)
+   
+M = tapply(y,
+           INDEX = mydf.cf$ACC,
+           FUN   = mean, na.rm=T)
+
+SD = tapply(y,
+           INDEX = mydf.cf$ACC,
+           FUN   = sd, na.rm=T); length(SD); length(x); length(M) #x is 42, not 49
+
+MA<-mean(mydf.cf$ratio_cf, na.rm=T)
+SDA<-sd(mydf.cf$ratio_cf, na.rm=T) 
+
+plot.new()
+### FERTILIZED CONTROL plot means and sd of each study
+plot(M, x,ylab="ACC", xlab="Effect Size",
+       pch=16, cex=.001, xlim=c(-1,1), ylim=(c(0,70)) )
+ abline(v=0); abline(v=MA, lty=2, col="red", lwd=2)
+
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=70, x0=MA-SDA, y1=70, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="red") #1150 is the 'pretend' ACC to plot the grand mean
+
+points(M, x,pch=16,cex=.75)
+points(MA, 70, col="red", pch=5,cex=2)
+
+(exp(MA)-1)*100 # % change with amendment 17% for fertilized controls (32% for zero-fertilized controls)
+
+### USING ACC + Treatment name ###
+#########################################
+### 11d GRAPHS OF RESPONSE RATIOS ie, plot within study variance ACC+trt
+#########################################
+y<-df.c$ratio_all
+x<-seq(1,length(unique(df.c$At)),1) #create a sequence of numbers to represent the ACC+trt
+str(df.c$At)
+trt<-levels(df.c$trt_name)
+
+M = as.numeric(tapply(y,
+           INDEX = df.c$At,
+           FUN   = mean, na.rm=T))
+
+SD = as.numeric(tapply(y,
+           INDEX = df.c$At,
+           FUN   = sd, na.rm=T))
+
+length(SD); length(x); length(M)
+
+str(SD)
+MA<-mean(df.c$ratio_all, na.rm=T)
+SDA<-sd(df.c$ratio_all, na.rm=T) 
+plot.new()
+### ALL plot means and sd of each study ACC+trt
+plot(M, x, ylab="ACC & Treatments", xlab="Effect Size (all)",
+      xlim=c(-1,1), ylim=(c(0,130)),
+       pch=16, cex=.001)
+ abline(v=0); abline(v=MA, lty=2, col="blue", lwd=2)
+yforAT<-130 #125 is the 'pretend' At to plot the grand mean
+   arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+   arrows(y0=yforAT, x0=MA-SDA, y1=yforAT, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") 
+points(M, x,pch=16,cex=.75)
+points(MA, yforAT, col="blue", pch=5,cex=2)
+
+(exp(MA)-1)*100 # % change with amendment
+
+#########################################
+### 11e plot zero controls only  ACC+trt !!! NOT WORKING,  X and Y lengths differ, need to edit !!!
+#########################################
+y<-subset(df.c, control.type="zf")$ratio_zf
+x<-seq(1,length(unique(mydf.cf$At)),1)
+
+M = as.numeric(tapply(y,
+           INDEX = mydf.zf$At,
+           FUN   = mean, na.rm=T))
+
+SD = as.numeric(tapply(y,
+           INDEX = mydf.zf$At,
+           FUN   = sd, na.rm=T)); length(SD); length(x); length(M)
+
+MA<-mean(mydf.zf$ratio_zf, na.rm=T)
+SDA<-sd(mydf.zf$ratio_zf, na.rm=T) 
+
+### ZERO plot means and sd of each study  
+plot(M, x, ylab="ACC & Treatments", xlab="Effect Size",
+      xlim=c(-2,2), ylim=(c(0,130)),
+       pch=16, cex=.001)
+ abline(v=0); abline(v=MA, lty=2, col="blue", lwd=2)
+
+ yforAT<-125
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=yforAT, x0=MA-SDA, y1=yforAT, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") #1150 is the 'pretend' At to plot the grand mean
+
+points(M, x,pch=16,cex=.75)
+points(MA, 125, col="blue", pch=5,cex=2)
+(exp(MA)-1)*100 # % change with amendment 32% for zero fertilized controls
+
+#########################################
+### 11f plot controls w fertilizer ACC+trt !!! NEEDS A FEW EDITS FOR 'POLISHED' GRAPH !!!
+#########################################
+y<-mydf.cf$ratio_cf
+x<-seq(1,length(unique(mydf.cf$At)),1)
+   
+M = as.numeric(tapply(y,
+           INDEX = mydf.cf$At,
+           FUN   = mean, na.rm=T))
+
+SD = as.numeric(tapply(y,
+           INDEX = mydf.cf$At,
+           FUN   = sd, na.rm=T)); length(SD); length(x); length(M)
+
+MA<-mean(mydf.cf$ratio_cf, na.rm=T)
+SDA<-sd(mydf.cf$ratio_cf, na.rm=T) 
+
+### FERTILIZED CONTROL plot means and sd of each study
+plot.new()
+plot(M, x,ylab="ACC & Treatments", xlab="Effect Size",
+       pch=16, cex=.001, xlim=c(-1.5,1.5), ylim=(c(0,100)) )
+ abline(v=0); abline(v=MA, lty=2, col="red", lwd=2)
+
+ 
+ arrows(y0=x, x0=M-SD, y1=x, x1=M+SD, code=3, angle=90, length=0.025, col="darkgray") #error bars
+ arrows(y0=95, x0=MA-SDA, y1=95, x1=MA+SDA, code=3, angle=90, length=0.025, lty=2, col="blue") #95 is the 'pretend' At to plot the grand mean
+ points(M, x,pch=16,cex=.75)
+points(MA, 95, col="blue", pch=5,cex=2)
+```
+
+```{r E. IN PROGRESS CODE: Bootstrap Q values}
+##########################################################################################################
+### IN PROGRESS STARTING WITH THIS SECTION......
+### 12. calc Qb for all paramters
+###
+#########################################################################################################
+# bootstrap example with forumula
+#https://stats.stackexchange.com/questions/298506/bias-corrected-percentile-confidence-intervals
+
+#loop through variables
+#Management
+#crop_group + irrigation +crop_system + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + 
+    #amend C:N 
+
+#Environment: Soil properties 
+#lat_group +clay_group + pH_group + SOC_int_group + MAP +sand_group(?)
+      # + irrigation +crop_system + duration_even + C.rate_group + amend_N_kg.ha_group + amend_group + 
+     #lat_group +clay_group + pH_group + SOC_int_group + MAP +sand_group
+
+mods1<- c(names(df.c)[c(1:42)], "trt_name", "control.type", "depth")
+
+
+#combined fertlized and non fertilized controls
+w.comb<-c()
+theat.comb<-c()
+mu.comb<-c()
+QT.comb<-c()
+K.comb<-c()
+
+QB
+I2.comb<-c()
+p.QT<-c()
+p.I2<-c()
+
+
+#B. zero input controls
+w_zf<-mydf.zf$w_zf 
+theta.zf<-mydf.zf$ratio_zf; hist(theta.zf); shapiro.test(theta.zf)
+mu.zf <- sum(w_zf*theta.zf)/sum(w_zf) #0.2792475; %change 32.21
+QT.zf <- sum (w_zf* (theta.zf-mu.zf)^2) #looked up X2 p-value = 0.2236, not sig
+K.zf <- length(unique(mydf.zf$ACC)) #39
+I2.zf = max ((100*( (QT.zf-(K.zf-1))/QT.zf)),0)
+#16% of observed variance can be attribted to difference among the studies
+
+#get p-value, testing backtransformed ratios against X2 distribution with K-1 for df
+ 1-pchisq(q=QT.zf, df=(K.zf-1)) #ACC is not significant
+ 1-pchisq(q=I2.zf, df=(K.zf-1)) #ACC not significant - not sure if this test makes statistical sense, just curious
+ #16.2% of variance explained by ACC
+ 
+
+#  p.value = c()
+  
+#  for(i in 1:ncol(mods1)){
+  
+#  }
+#    ad = adonis(x[factors %in% c(co[1,elem],co[2,elem]),] ~ factors[factors %in% c(co[1,elem],co[2,elem])] , method =sim.method);
+#    pairs = c(pairs,paste(co[1,elem],'vs',co[2,elem]));
+#    F.Model =c(F.Model,ad$aov.tab[1,4]);
+#    R2 = c(R2,ad$aov.tab[1,5]);
+#    p.value = c(p.value,ad$aov.tab[1,6])
+#  }
+#  p.adjusted = p.adjust(p.value,method=p.adjust.m)
+#  pairw.res = data.frame(pairs,F.Model,R2,p.value,p.adjusted)
+#  return(pairw.res)
+#}
+##
+         
+#can also play with boot.mle() for a fitted model
+library(FAmle)
+#mle() needs to be a 
+#boot.mle(all.rma.ar.null)
+
+#check signficant against the X2 distribution:
+# http://hamelg.blogspot.com/2015/08/introduction-to-r-part-25-chi-squared.html
+
+#measurements need to be independent = can't test depths?????? 
+
+#mu.hat = sum(w.k*theta.k)/sum(w.k) ; 
+#QT = sum (w.k* (theta.k-mu.hat)^2)
+#df = # classes * # comparisons -1
+
+#mux.x = boot(data=df.c$ratio_cf, statistic=boot_mean, R=1000, weights=df.c$w_all); plot(results.cf); summary(results.cf) #mean RR = .14995; boot.ci(results.cf)
+  
+    #ratio <- function(d, w) sum(d$x * w)/sum(d$u * w)
+       #boot(city, ratio, R = 999, stype = "w")
+  
+#Qw= Sum [ (effect - group bootstrapped mean)^2) / SD^2 ]
+   #Qw = Sum (theta.x - mu.x)^2) / SD^2 ]
+#df = # comparisons -1
+
+#QB= Sum [ group bootstrapped mean - grand bootstrapped mean)^2) / SD^2 ]
+#df = # classes -1
+
+#A. fertilized controls
+w_cf<-mydf.cf$w_cf 
+theta.cf<-mydf.cf$ratio_cf
+mu.cf <- sum(w_cf*theta.cf)/sum(w_cf) #0.1495921; % change 16.13
+QT.cf <- sum (w_cf* (theta.cf-mu.cf)^2) #not meaningful for random effects models, compare to X2 distrubtion, 50.09 (X2 p-value = .18 , not sig )
+
+
+ 1-pchisq(q=QT.cf, df=(K.cf-1)) #ACC not significant
+#create function to resample with
+boot_mean <- function(df_vector, resample_indices) {
+    mean(df_vector[resample_indices])
+}
+boot_var <- function(df_vector, resample_indices) {
+    (sd(df_vector[resample_indices])^2 )
+}
+set.seed(12345)
+#moderators of interest: exp_duration_mos, amend_group, clay, lat.dec.degree
+
+#############
+# example Bootstrap Run data frame with fertilized controls 
+##############
+#remove rows with NA for response ratio - as these obvs cannot be analyzed
+mydf.cf<-df.c[which(!is.na(df.c$ratio_cf)),]  
+mean(mydf.cf$ratio_cf) #mean response ratio
+#mean(mydf.cf$ratio_cf)-1 #percent change RR=1 no effect (Kallenbach)
+mean(mydf.cf$percent.change.cf) #percent change (Pressler 2018)
+
+results.cf <- boot(data=mydf.cf$ratio_cf, statistic=boot_mean, R=1000, weights=mydf.cf$w_cf) # dist looks more evenly distriuted around mean without the weights
+                #formula=ratio_cf~depth) #strata=ACC?depth?
+plot(results.cf)
+summary(results.cf) #mean RR = .14995
+boot.ci(results.cf) #,type="bca") #significant if do not inclue 1
+ #Percentile 95%   ( 0.1270,  0.1736 )
+```
+
+```{r map}
+##use code from Katie Rocci
+
+
+
+```
+
+
+
+####References
+Bootstrap/max likelihood: https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2001GC000253
+
+Auto correlation rma: https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv
+lmer models with random effects (and intercepts): https://stats.stackexchange.com/questions/31569/questions-about-how-random-effects-are-specified-in-lmer
+
+AIC and BIC explainations:
+https://stats.stackexchange.com/questions/81427/aic-guidelines-in-model-selection
+
+```{r, 0. climate data, eval=FALSE}
+#http://www.worldclim.org/formats1
+
+#tmean , prec ; 12 data layers 1 for each month
+#BIO1 = Annual Mean Temperature; BIO2 = Mean Diurnal Range (Mean of monthly (max temp – min temp)); BIO3 = Isothermality (BIO2/BIO7) (* 100)
+#BIO4 = Temperature Seasonality (standard deviation *100); BIO5 = Max Temperature of Warmest Month, BIO6 = Min Temperature of Coldest Month
+#BIO7 = Temperature Annual Range (BIO5-BIO6), BIO8 = Mean Temperature of Wettest Quarter, BIO9 = Mean Temperature of Driest Quarter
+#BIO10 = Mean Temperature of Warmest Quarter, BIO11 = Mean Temperature of Coldest Quarter, BIO12 = Annual Precipitation
+#BIO13 = Precipitation of Wettest Month, BIO14 = Precipitation of Driest Month, BIO15 = Precipitation Seasonality (Coefficient of Variation)
+#BIO16 = Precipitation of Wettest Quarter, BIO17 = Precipitation of Driest Quarter, BIO18 = Precipitation of Warmest Quarter, BIO19 = Precipitation of Coldest Quarter
+
+#download resolution of climate data desired: http://worldclim.org/version2 #version 2 = 1970-2000
+  #or version 1.4, under generic grid format, downlaod bioclim 2.5 from https://www.worldclim.org/current
+
+#r <- raster::getData("worldclim",var="bio",res=2.5)
+
+
+# also possible to get future climate data: 
+# https://rdrr.io/cran/raster/man/getData.html
+
+#r <- r[[c(1,12)]] #Bio1 and Bio12 selected
+#names(r) <- c("Temp","Prec")
+
+#lats <- c(df$lat.dec.degree) #use spTransform if not in WGS 84 lat/lon (EPSG 4326)
+#longs <- c(df$long.dec.degree) 
+# coords <- data.frame(x=longs,y=lats)
+
+# points <- SpatialPoints(coords, proj4string = r@crs)
+# values <- raster::extract(r,points)
+
+#df.clim <- cbind.data.frame(coordinates(points),values); head(df.clim,2)
+#df.clim$Temp<-df.clim$Temp/10 #WorldCLim data hs a scale factor of 10 for temp
+#WriteXLS(df.clim, "ometa_climate.xls") #specific file here
+
+```
+
